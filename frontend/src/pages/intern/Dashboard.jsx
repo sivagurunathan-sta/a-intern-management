@@ -1,4 +1,4 @@
-// frontend/src/pages/intern/Dashboard.jsx - FULLY FIXED VERSION
+// frontend/src/pages/intern/Dashboard.jsx - FIXED UNENROLL VERSION
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
@@ -163,24 +163,6 @@ const InternDashboard = () => {
     }
   }, [selectedEnrollment?.internship?.id, fetchTasks]);
 
-  // FIX: Disable polling to prevent auto-switching
-  // You can enable this later with a longer interval if needed
-  /*
-  useEffect(() => {
-    pollIntervalRef.current = setInterval(() => {
-      fetchEnrollments();
-      fetchAvailableInternships();
-      fetchNotifications();
-    }, 30000); // 30 seconds
-
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-    };
-  }, [fetchEnrollments, fetchAvailableInternships, fetchNotifications]);
-  */
-
   // ============================================================================
   // ACTION HANDLERS - FIXED UNENROLL
   // ============================================================================
@@ -213,29 +195,32 @@ const InternDashboard = () => {
     }
   };
 
-  // FIX: Proper unenroll handler
+  // ✅ FIXED: Proper unenroll handler with enrollment ID
   const openUnenrollModal = (enrollment, event) => {
     if (event) {
       event.stopPropagation();
     }
     console.log('Opening unenroll modal for:', enrollment.internship?.title);
+    console.log('Enrollment ID:', enrollment.id); // This is the enrollment ID we need
     setUnenrollTarget(enrollment);
     setShowUnenrollModal(true);
   };
 
+  // ✅ FIXED: Use enrollment ID instead of internship ID
   const handleUnenroll = async () => {
-    if (!unenrollTarget || !unenrollTarget.internship?.id) {
-      alert('❌ Invalid internship data');
+    if (!unenrollTarget || !unenrollTarget.id) {
+      alert('❌ Invalid enrollment data');
       return;
     }
 
     setLoading(true);
     try {
       const token = getToken();
-      console.log('Unenrolling from internship ID:', unenrollTarget.internship.id);
+      console.log('Unenrolling enrollment ID:', unenrollTarget.id);
       
+      // ✅ FIXED: Use the correct API endpoint with enrollment ID
       const res = await axios.delete(
-        `${API_URL}/internships/${unenrollTarget.internship.id}/unenroll`,
+        `${API_URL}/internships/${unenrollTarget.id}/unenroll`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -480,7 +465,7 @@ const InternDashboard = () => {
                       />
                     )}
                     {enrollment.isCompleted && <div className="completed-badge">✅ Completed</div>}
-                    {/* FIX: Proper unenroll button with event handler */}
+                    {/* ✅ FIXED: Proper unenroll button with enrollment object */}
                     <button 
                       className="btn-unenroll-card"
                       onClick={(e) => openUnenrollModal(enrollment, e)}
