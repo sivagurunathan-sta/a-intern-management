@@ -1,0 +1,939 @@
+# Student Learning Management System (LMS) - Complete Specification
+
+## 1. SYSTEM OVERVIEW
+
+The Student LMS is a comprehensive web-based platform designed to automate internship management, training delivery, performance evaluation, and monetization. The system replaces traditional WhatsApp-based communication with a centralized, organized platform accessible through Google authentication.
+
+### Core Purpose
+- Automate internship onboarding and task management
+- Replace WhatsApp-based communication with a unified platform
+- Track intern progress and performance
+- Enable performance-based certification and paid task access
+- Generate revenue through certificates and premium content
+
+### Key Statistics
+- Total Tasks Per Internship: 35 daily tasks
+- Task Completion Window: 24 hours per task
+- Minimum Passing Score: 75%
+- Certificate Cost: ₹499
+- Paid Task Cost: ₹1000 each
+- Internship Duration: 35 days
+
+
+## 2. USER ROLES & PERMISSIONS
+
+### 2.1 ADMIN ROLE
+**Access Level:** Full system control
+
+**Permissions:**
+- Create, update, and delete tasks
+- Upload tasks in bulk
+- View all intern submissions
+- Evaluate intern performance
+- Issue certificates
+- Track all payments
+- View detailed analytics and reports
+- Manage admin accounts
+- Assign private tasks to interns
+- Chat with interns
+- Generate and export reports
+- Monitor system usage
+
+**Dashboard Features:**
+- Overall system statistics
+- Revenue tracking
+- Intern enrollment numbers
+- Task completion rates
+- Certificate issuance count
+- Payment verification queue
+
+### 2.2 INTERN ROLE
+**Access Level:** Limited to personal dashboard and assigned internships
+
+**Permissions:**
+- View assigned tasks
+- Submit task solutions
+- Skip tasks (with score penalty)
+- View task submission status
+- Check progress score
+- View certificate eligibility
+- Purchase certificates
+- Access paid tasks (after certification)
+- Download certificates
+- View notifications
+- Access chat with admins
+
+**Restrictions:**
+- Cannot edit or delete tasks
+- Cannot access other interns' data
+- Cannot modify scores
+- Cannot access paid tasks without certificate
+
+
+## 3. AUTHENTICATION & AUTHORIZATION
+
+### 3.1 Login Mechanism
+- **Primary Method:** Google OAuth
+- **Fallback Method:** Email and password authentication
+- **Session Management:** JWT tokens
+- **Token Expiry:** 24 hours (configurable)
+- **Refresh Token:** 30 days (configurable)
+
+### 3.2 Account Creation
+- Google account auto-creates INTERN role
+- Admin accounts created manually by super-admin
+- Email verification required for email-based signup
+- Password requirements: Minimum 8 characters, includes uppercase, lowercase, numbers, and special characters
+
+### 3.3 Security Features
+- HTTPS encryption for all communications
+- Passwords hashed using bcrypt
+- JWT tokens with signature verification
+- Role-based access control (RBAC)
+- Protected API endpoints
+- CSRF token protection
+- Rate limiting on authentication endpoints
+
+
+## 4. INTERN DASHBOARD
+
+### 4.1 Dashboard Layout
+The intern dashboard displays all necessary information in an organized, intuitive interface.
+
+### 4.2 Dashboard Components
+
+#### Task Panel
+- **Display:** List of 35 tasks in sequential order
+- **Task Status Indicators:**
+  - Locked (tasks after current)
+  - Available (current task ready for submission)
+  - Submitted (waiting for review)
+  - Approved (completed successfully)
+  - Skipped (task bypassed by intern)
+  - Rejected (needs resubmission)
+- **Task Information Display:**
+  - Task number (1-35)
+  - Task title
+  - Task description
+  - Submission deadline
+  - Current status
+  - Time remaining
+  - Action buttons (Submit/Skip)
+
+#### Progress Tracking
+- **Current Progress:** Visual progress bar showing completion percentage
+- **Task Count:** "X of 35 tasks completed"
+- **Days Elapsed:** Counter showing current day of internship
+- **Days Remaining:** Countdown to internship end
+- **Score Display:** Current accumulated score with percentage
+
+#### Submission Status
+- **Submitted Tasks:** Count with list
+- **Approved Tasks:** Count with list
+- **Pending Review:** Count with list
+- **Skipped Tasks:** Count with list
+- **Rejected Tasks:** Count with list
+- **Action Needed:** Highlighted tasks requiring resubmission
+
+#### Certificate Eligibility
+- **Eligibility Status:**
+  - Current Score: X%
+  - Required Score: 75%
+  - Status: "Eligible" or "Not Yet Eligible"
+- **Progress to Eligibility:** If below 75%, show remaining score needed
+- **Certificate Purchase Option:** Button to purchase (if eligible)
+- **Certificate Status:** "Not Purchased," "Processing," "Purchased," or "Downloaded"
+- **Download Option:** Button to download certificate (if purchased)
+
+#### Paid Tasks Section
+- **Access Status:** "Available" (if certificate purchased) or "Locked" (if not)
+- **Paid Task List:**
+  - Task number
+  - Task title
+  - Description
+  - Price (₹1000)
+  - "Purchase" button (if not purchased)
+  - "View" button (if purchased)
+- **Purchased Tasks:** Separate list showing completed purchases
+- **Total Spent:** Sum of all paid task purchases
+
+#### Notifications
+- **Notification Center:** Chronological list of all notifications
+- **Notification Types:**
+  - Task deadlines
+  - Submission approvals/rejections
+  - Certificate eligibility status
+  - Payment confirmations
+  - New messages from admin
+  - System announcements
+- **Read/Unread Status:** Visual distinction
+- **Notification Timestamps:** Each notification shows creation time
+- **Dismiss/Clear Options:** Ability to clear notifications
+
+
+## 5. TASK MANAGEMENT SYSTEM
+
+### 5.1 Task Structure
+Each task contains the following information:
+
+- Task ID (unique identifier)
+- Task Number (1-35)
+- Task Title
+- Task Description
+- Task Instructions
+- Expected Deliverables
+- Submission Requirements
+- Submission Deadline (24 hours from unlock)
+- Task Difficulty (Low/Medium/High)
+- Skills Required
+- Resources/Links
+- Example Submission (optional)
+
+### 5.2 Task Lifecycle
+
+#### Task Unlocking Logic
+- Day 1: Task 1 becomes available
+- Day 2: Task 2 becomes available (Task 1 must be submitted or skipped)
+- Day 3-35: Sequential unlocking based on previous task completion
+- Multiple Days: Interns can work on available tasks in any order after unlocking
+
+#### Task State Transitions
+```
+Locked → Available → Submitted → (Admin Review) → Approved/Rejected
+                  → Skipped (stays skipped, no further actions possible)
+```
+
+### 5.3 Task Submission
+
+#### Submission Method
+- **Required Format:** GitHub Repository Link
+- **Link Validation:** System validates URL format and accessibility
+- **Submission Window:** 24 hours from task unlock
+- **Late Submission:** System notifies but still allows submission (may affect score)
+- **Resubmission:** Allowed for rejected tasks, replaces previous submission
+
+#### Submission Details Required
+- GitHub repository URL
+- Commit message (optional but recommended)
+- Brief summary of what was completed (optional)
+- Any additional notes or challenges (optional)
+
+### 5.4 Task Skipping
+
+#### Skip Mechanism
+- Intern can skip any task
+- Skip reduces final score by 5 percentage points per skipped task
+- Maximum skipped tasks: 8 (would reduce score by 40%)
+- Skipped tasks cannot be resubmitted later
+- Skipped tasks unlock the next available task
+
+#### Skip Restrictions
+- Cannot skip if task deadline not reached (except during last 24 hours)
+- Must provide reason for skip (optional feedback field)
+
+### 5.5 Task Scoring
+- Each task carries equal weight: 100/35 = 2.86% per task
+- Bonus points: Up to 5% for exceptional performance
+- Penalty points: Deducted for late submissions (1% per day)
+- Skipped tasks: 0 points (5% automatic reduction from final score)
+
+
+## 6. ADMIN PORTAL
+
+### 6.1 Admin Dashboard
+The admin dashboard provides comprehensive system overview and management tools.
+
+#### Dashboard Statistics
+- Total Interns Enrolled (current batch)
+- Total Interns Completed
+- Total Interns Active
+- Average Score
+- Revenue Generated (Certificates + Paid Tasks)
+- Pending Submissions
+- Pending Payments
+- Total Tasks Uploaded
+
+### 6.2 User Management
+
+#### Viewing Users
+- **User List:** Table with pagination
+- **Columns:**
+  - User ID
+  - Name
+  - Email
+  - Enrollment Status
+  - Days in Program
+  - Current Score
+  - Tasks Completed
+  - Certificate Status
+  - Join Date
+  - Last Activity
+- **Search & Filter:**
+  - Search by name/email
+  - Filter by status (Active/Completed/Inactive)
+  - Filter by certificate status
+  - Filter by score range
+  - Sort by any column
+
+#### User Profile Management
+- **View Full Profile:**
+  - Personal information
+  - Enrollment details
+  - Progress statistics
+  - Task submission history
+  - Payment history
+  - Certificate information
+- **Edit User Information:**
+  - Update contact information
+  - Modify enrollment status
+  - Add notes/comments
+- **Access Control:**
+  - Revoke access (disable login)
+  - Restore access (re-enable login)
+  - Reset password
+  - Send notification
+
+#### Bulk User Operations
+- **Bulk Import:**
+  - CSV import for multiple users
+  - Validate email format
+  - Create accounts in batch
+  - Auto-generate passwords or send invitations
+- **Bulk Generate:**
+  - Generate X number of test accounts
+  - Auto-generate credentials
+  - Set role and status
+  - Useful for testing and setup
+
+### 6.3 Task Management
+
+#### Task Upload
+- **Create New Task:**
+  - Task number (1-35)
+  - Title
+  - Description
+  - Instructions
+  - Difficulty level
+  - Expected deliverables
+  - Resources and links
+  - Example submission
+- **Edit Existing Task:**
+  - Modify any task field
+  - Update for current/future batches
+  - Version control (keep edit history)
+- **Delete Task:**
+  - Only if no submissions exist
+  - Archive old tasks
+- **Bulk Upload:**
+  - Import tasks from CSV/Excel
+  - Template available for download
+  - Validation before import
+  - Error reporting
+
+#### Task Management Features
+- **Task List View:**
+  - All 35 tasks displayed
+  - Display task number, title, status
+  - Submission count per task
+  - Average score for task
+  - Edit/delete options
+- **Task Status:**
+  - Active (currently being worked on)
+  - Archived (previous batch)
+  - Draft (not yet published)
+
+### 6.4 Submission Management
+
+#### Submission Viewing
+- **Submission List:**
+  - Table with pagination
+  - Columns: Task, Intern Name, Submission Date, Status, Score, Actions
+  - Search by intern name/email
+  - Filter by task
+  - Filter by status (Pending/Approved/Rejected)
+  - Filter by date range
+  - Sort options
+- **Submission Details:**
+  - Intern information
+  - Task information
+  - GitHub link (clickable, opens in new tab)
+  - Submission timestamp
+  - Submission content (if available)
+  - Previous submissions (history)
+  - Review comments
+
+#### Submission Review & Evaluation
+- **Review Interface:**
+  - Display submission details
+  - GitHub repository preview/link
+  - Review form
+- **Evaluation Form:**
+  - Status dropdown: Approved/Rejected/Request Changes
+  - Score field (0-100)
+  - Feedback text area
+  - Predefined feedback templates (quick comments)
+  - Add tags/labels
+  - Private notes (not visible to intern)
+- **Scoring Options:**
+  - Full marks (100%)
+  - Partial marks with justification
+  - Zero marks with feedback
+  - Bonus points (up to 5%)
+- **Actions:**
+  - Save and review later
+  - Submit review (notifies intern)
+  - Bulk review (multiple submissions)
+
+#### Submission Statistics
+- Total submissions received
+- Submission rate (%)
+- On-time submission rate (%)
+- Late submission rate (%)
+- Average time to submit
+- Pending review count
+- Approval rate (%)
+- Common rejection reasons
+
+### 6.5 Certificate Management
+
+#### Certificate Issuance
+- **Manual Certificate Issuance:**
+  - View eligible interns (≥75% score)
+  - Generate certificate
+  - Send to intern
+  - Track issuance date
+- **Automatic Certificate:**
+  - System automatically generates after intern reaches 75%
+  - Notification sent to intern
+  - Available for download
+- **Certificate Format:**
+  - Professional design
+  - Intern name
+  - Completion date
+  - Final score
+  - Unique certificate ID
+  - QR code for verification (optional)
+  - Digital signature
+
+#### Certificate Tracking
+- **Certificate Status Report:**
+  - Total eligible: count of interns with ≥75%
+  - Purchased: count who bought certificate
+  - Not purchased: eligible but not bought
+  - Revenue generated: ₹499 × purchased count
+- **Individual Certificate View:**
+  - Issue date
+  - Expiry date (if applicable)
+  - Status (Generated/Purchased/Downloaded)
+  - Associated intern
+
+### 6.6 Payment Management
+
+#### Payment Verification
+- **Payment List:**
+  - All certificate and paid task purchases
+  - Columns: Transaction ID, Type, Amount, Intern, Date, Status, Actions
+  - Filter by status (Pending/Verified/Rejected)
+  - Filter by type (Certificate/Paid Task)
+  - Filter by date range
+  - Search functionality
+- **Payment Details:**
+  - Transaction ID
+  - Transaction date and time
+  - Payment method
+  - Amount
+  - Intern information
+  - Item purchased (certificate/paid task)
+  - Payment status
+  - Proof/Screenshot (if required)
+  - Admin notes
+
+#### Payment Verification Process
+- **Verify Payment:**
+  - Review payment proof
+  - Approve transaction
+  - Mark as verified
+  - Generate receipt
+  - Unlock access/certificate
+- **Reject Payment:**
+  - Mark as rejected
+  - Reason for rejection
+  - Notify intern
+  - Request resubmission
+- **Dispute Resolution:**
+  - Mark as disputed
+  - Add notes
+  - Follow up with intern
+  - Resolve and mark closed
+
+#### Payment Statistics
+- **Revenue Dashboard:**
+  - Total revenue (all time)
+  - Revenue this month
+  - Revenue breakdown by type
+  - Certificate revenue
+  - Paid task revenue
+  - Average transaction value
+  - Payment success rate (%)
+  - Pending verification count
+  - Rejected payment count
+
+### 6.7 Chat & Private Tasks
+
+#### Admin Chat
+- **Chat Interface:**
+  - List of interns with unread messages
+  - One-to-one messaging
+  - Message history
+  - Timestamps
+  - Read receipts
+  - Attach files/links
+- **Chat Features:**
+  - Search previous conversations
+  - Archive conversations
+  - Block intern (no messages)
+  - Delete conversations
+
+#### Private Task Assignment
+- **Assign Private Task:**
+  - Select intern
+  - Task title and description
+  - Submission type
+  - Deadline
+  - Difficulty level
+  - Attach resources
+- **Track Private Tasks:**
+  - List of assigned tasks
+  - Submission status
+  - Due dates
+  - Review submissions
+
+### 6.8 Analytics & Reports
+
+#### Analytics Dashboard
+- **Overview Charts:**
+  - Completion rate over time
+  - Score distribution (histogram)
+  - Tasks completion rate (which tasks most/least completed)
+  - Submission timeline
+  - Revenue growth
+- **Performance Metrics:**
+  - Average score
+  - Median score
+  - Score range (min/max)
+  - Standard deviation
+  - Percentile rankings
+- **Engagement Metrics:**
+  - Average daily active interns
+  - Login frequency
+  - Task submission rate
+  - Average time spent per task
+- **Cohort Analysis:**
+  - Batch-wise comparison
+  - Month-wise comparison
+  - Performance trends
+
+#### Reports
+- **Report Types:**
+  - Intern Performance Report
+  - Task Completion Report
+  - Revenue Report
+  - Engagement Report
+  - Completion Certificate Report
+  - Payment Transaction Report
+- **Report Generation:**
+  - Date range selection
+  - Filter options (batch, status, etc.)
+  - Export formats: PDF, Excel, CSV
+  - Schedule automated reports
+  - Email delivery
+- **Custom Reports:**
+  - Select metrics to include
+  - Choose visualization type
+  - Save custom report templates
+
+
+## 7. CERTIFICATE SYSTEM
+
+### 7.1 Certificate Eligibility
+
+#### Eligibility Criteria
+- Final score ≥ 75%
+- All 35 days completed (or program end date reached)
+- All required submissions reviewed
+- No pending rejections or reviews
+
+#### Score Calculation
+- Formula: (Total Approved Tasks × 100) / 35 = Score %
+- Skipped tasks reduce final score by 5% each
+- Bonus points (up to 5%) for exceptional performance
+- Late submission penalty: 1% per day late
+- Final score: Min 0%, Max 105% (with bonus)
+
+### 7.2 Certificate Generation
+
+#### Certificate Details
+- **Content:**
+  - Intern name
+  - Program title
+  - Completion date
+  - Final score
+  - Certificate ID (unique)
+  - Issue date
+  - Valid from/to (if applicable)
+  - Organization details
+  - Digital signature/seal
+- **Format:**
+  - PDF document
+  - 8.5 × 11 inches
+  - Professional design
+  - QR code linking to verification page (optional)
+
+### 7.3 Certificate Purchase
+
+#### Purchase Flow
+1. Intern views certificate eligibility
+2. If eligible, "Purchase Certificate" button appears
+3. Click button → Payment page
+4. Select payment method
+5. Enter payment details (₹499)
+6. Submit payment
+7. Receive transaction ID
+8. Admin verifies payment
+9. Certificate generated and downloaded link provided
+
+#### Certificate Delivery
+- Download link in dashboard
+- Email with download link
+- Print-friendly version
+- Digital verification certificate (optional)
+
+### 7.4 Certificate Verification
+
+#### Verification Process
+- Unique certificate ID
+- QR code scanning (if implemented)
+- Online verification page (company website)
+- Display: Name, Date, Score, Validity
+
+
+## 8. PAID TASKS SYSTEM
+
+### 8.1 Paid Task Overview
+
+#### Requirements
+- Only accessible after certificate purchase
+- Premium content
+- Each task costs ₹1000
+- Optional advanced learning
+
+### 8.2 Paid Task Management
+
+#### Admin Functions
+- **Create Paid Task:**
+  - Task title
+  - Description
+  - Content/Instructions
+  - Resources
+  - Difficulty level
+  - Related internship
+- **Edit/Delete Paid Tasks:**
+  - Update content
+  - Adjust price
+  - Archive old tasks
+- **List Paid Tasks:**
+  - View all available paid tasks
+  - Track purchases
+  - Revenue per task
+
+#### Intern Access
+- **View Available Paid Tasks:**
+  - Only after certificate purchase
+  - Display title, description, price
+  - Purchase button
+- **Purchase Flow:**
+  1. Click "Purchase" on paid task
+  2. Confirm ₹1000 payment
+  3. Payment verification
+  4. Gain access to task
+  5. Submit solution
+  6. Admin reviews and provides feedback
+
+### 8.3 Paid Task Submission & Review
+- Same process as regular tasks
+- GitHub link submission
+- Admin review and feedback
+- Certificate of completion (optional)
+
+
+## 9. PAYMENT SYSTEM
+
+### 9.1 Payment Methods
+
+#### Supported Methods
+- UPI (Unified Payments Interface)
+- Debit Card
+- Credit Card
+- Net Banking
+- Digital Wallets (Apple Pay, Google Pay, etc.)
+- Bank Transfer (manual verification)
+
+### 9.2 Payment Items
+
+#### Certificate Purchase
+- Item: Certificate for internship program
+- Amount: ₹499
+- Frequency: One per internship (per intern)
+- Triggers: Intern purchases certificate (if eligible)
+
+#### Paid Task Purchase
+- Item: Individual paid task access
+- Amount: ₹1000 per task
+- Frequency: Multiple (one per purchased task)
+- Triggers: Intern purchases paid task (if certified)
+
+### 9.3 Payment Processing
+
+#### Payment Flow
+1. Intern initiates purchase
+2. System generates payment request with unique ID
+3. Intern proceeds to payment gateway
+4. Payment gateway processes (UPI/Card/etc.)
+5. Payment status returned to system
+6. Admin receives notification of pending verification
+7. Admin verifies payment (checks screenshot/proof if needed)
+8. System marks payment verified
+9. Access granted to intern (certificate/paid task)
+10. Notification sent to intern
+
+#### Payment Verification
+- **Automatic Verification:** For digital payments with instant confirmation
+- **Manual Verification:** For bank transfers, screenshot verification
+- **Verification Checklist:**
+  - Transaction ID matches
+  - Amount correct
+  - Recipient matches
+  - Timestamp reasonable
+  - No duplicate transaction
+
+### 9.4 Payment Security
+- SSL/TLS encryption
+- PCI DSS compliance (for card payments)
+- Secure payment gateway integration
+- Transaction ID logging
+- Audit trail for all payments
+- No sensitive data storage on server
+
+
+## 10. NOTIFICATION SYSTEM
+
+### 10.1 Notification Types
+
+#### Task-Related Notifications
+- Task unlocked (new task available)
+- Task deadline approaching (24 hours before deadline)
+- Task deadline reached (task time expired)
+- Submission received (admin sees this)
+- Submission approved (intern sees this)
+- Submission rejected (intern sees this)
+- Resubmission needed (for rejected tasks)
+
+#### Performance Notifications
+- Halfway progress checkpoint (18 tasks completed)
+- Milestone reached (30 tasks completed)
+- Certificate eligibility achieved (≥75% score)
+- Score below 75% (ineligible for certificate)
+
+#### Payment Notifications
+- Payment initiated confirmation
+- Payment verified confirmation
+- Certificate download link
+- Paid task access granted
+- Payment failed (if applicable)
+
+#### Admin Notifications
+- New submission pending review
+- Bulk submissions pending
+- Payment verification pending
+- System alerts (errors, issues)
+- Batch completion (all interns finished)
+
+### 10.2 Notification Delivery
+
+#### Channels
+- In-app notifications (dashboard)
+- Email notifications (optional, user preference)
+- SMS notifications (optional, premium feature)
+
+#### Notification Preferences
+- Users can enable/disable notification types
+- Users can select preferred channels
+- Frequency control (real-time, daily digest, weekly)
+- Do not disturb hours (optional)
+
+### 10.3 Notification Management
+- Mark as read
+- Archive notifications
+- Delete notifications
+- Search notifications
+- Filter by type/date
+- Notification history (7-30 days retention)
+
+
+## 11. TECHNICAL REQUIREMENTS
+
+### 11.1 Technology Stack
+
+#### Frontend
+- Framework: React.js
+- State Management: Redux or Context API
+- UI Library: Material-UI or Tailwind CSS
+- HTTP Client: Axios
+- Routing: React Router v6
+
+#### Backend
+- Runtime: Node.js
+- Framework: Express.js
+- Database: MongoDB or PostgreSQL
+- Authentication: JWT + OAuth 2.0
+- Payment Gateway: Razorpay or PayU API
+
+#### Infrastructure
+- Hosting: AWS/GCP/Azure
+- Database: Cloud-managed (MongoDB Atlas or RDS)
+- Storage: Cloud storage for certificates (S3 or similar)
+- Email Service: SendGrid or AWS SES
+
+### 11.2 Database Schema
+
+#### Core Entities
+- Users (id, name, email, password, role, createdAt)
+- Internships (id, title, duration, description, createdAt)
+- Tasks (id, internshipId, taskNumber, title, description, difficulty)
+- Enrollments (id, userId, internshipId, enrollmentDate, score, status)
+- Submissions (id, enrollmentId, taskId, githubLink, status, score, submittedAt)
+- Certificates (id, enrollmentId, certificateId, issuedAt, pdfUrl)
+- Payments (id, userId, type, amount, status, transactionId, verifiedAt)
+- Notifications (id, userId, type, message, read, createdAt)
+
+### 11.3 API Endpoints
+
+#### Authentication
+- POST /auth/login
+- POST /auth/register
+- POST /auth/google-login
+- GET /auth/me
+- POST /auth/logout
+- POST /auth/refresh-token
+
+#### Interns (INTERN role)
+- GET /intern/profile
+- GET /intern/enrollments
+- GET /intern/tasks
+- POST /tasks/{taskId}/submit
+- POST /tasks/{taskId}/skip
+- GET /intern/notifications
+- GET /certificates/status
+- POST /payments/purchase-certificate
+- GET /paid-tasks
+- POST /payments/purchase-paid-task
+
+#### Admin (ADMIN role)
+- GET /admin/users
+- POST /admin/users
+- PUT /admin/users/{userId}
+- GET /admin/submissions
+- PUT /admin/submissions/{submissionId}/review
+- GET /admin/payments
+- POST /admin/payments/{paymentId}/verify
+- GET /admin/analytics
+- POST /admin/tasks
+- PUT /admin/tasks/{taskId}
+
+### 11.4 Security Implementation
+- Password hashing (bcrypt)
+- JWT token management
+- Rate limiting on endpoints
+- Input validation and sanitization
+- CORS configuration
+- SQL injection prevention
+- XSS protection
+- CSRF tokens
+- HTTPS enforcement
+
+
+## 12. DATA PRIVACY & COMPLIANCE
+
+### 12.1 Data Protection
+- GDPR compliance (if applicable)
+- Personal data encryption
+- Secure data transmission
+- Data retention policies
+- Right to data deletion
+
+### 12.2 Audit Logging
+- User login/logout logs
+- Payment transaction logs
+- Admin actions log
+- Score modifications log
+- Data access logs
+- Retention: Minimum 1 year
+
+
+## 13. TESTING & QUALITY ASSURANCE
+
+### 13.1 Testing Strategy
+- Unit testing (Jest/Mocha)
+- Integration testing
+- End-to-end testing (Selenium/Cypress)
+- Performance testing
+- Security testing
+- User acceptance testing (UAT)
+
+### 13.2 Deployment
+- Staging environment for testing
+- Production environment
+- CI/CD pipeline
+- Version control (Git)
+- Rollback procedures
+
+
+## 14. SUPPORT & MAINTENANCE
+
+### 14.1 Support
+- Help documentation
+- FAQ section
+- Contact support form
+- Email support: support@lms.com
+- Response time: 24-48 hours
+
+### 14.2 Maintenance
+- Regular security updates
+- Database backups (daily)
+- Performance optimization
+- Bug fixes
+- Feature updates
+- Server monitoring
+
+
+## 15. SUCCESS METRICS
+
+### 15.1 Key Metrics
+- Internship completion rate (%)
+- Average final score
+- Certificate purchase rate (%)
+- Paid task purchase rate (%)
+- Total revenue generated
+- User satisfaction score
+- System uptime (%)
+- Average response time
+
+
+## 16. IMPLEMENTATION TIMELINE
+
+**Phase 1 (Week 1-2):** Backend setup, authentication, database
+**Phase 2 (Week 3-4):** Admin portal, task management
+**Phase 3 (Week 5-6):** Intern dashboard, submissions
+**Phase 4 (Week 7-8):** Certificates, payments, reports
+**Phase 5 (Week 9-10):** Testing, optimization, deployment
+**Phase 6 (Week 11-12):** Launch, monitoring, support
