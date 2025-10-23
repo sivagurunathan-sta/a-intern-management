@@ -1,4 +1,4 @@
-// frontend/src/App.js - UPDATED WITH ANALYTICS
+// frontend/src/App.js - COMPLETE WITH ALL CERTIFICATES ROUTES
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
@@ -9,7 +9,9 @@ import Payments from './pages/admin/Payments';
 import Certificates from './pages/admin/Certificates';
 import Analytics from './pages/admin/Analytics';
 import InternDashboard from './pages/intern/Dashboard';
+import InternCertificates from './pages/intern/Certificates'; // ✅ NEW IMPORT
 import { authAPI } from './services/api';
+import './App.css';
 
 // ============================================================================
 // LOGIN PAGE
@@ -50,37 +52,37 @@ const LoginPage = ({ onLogin }) => {
   };
 
   return (
-    <div style={loginStyles.container}>
-      <div style={loginStyles.card}>
-        <div style={loginStyles.header}>
-          <h1 style={loginStyles.title}>🎓 Student LMS</h1>
-          <p style={loginStyles.subtitle}>Sign in to your account</p>
+    <div className="login-container">
+      <div className="login-card">
+        <div className="login-header">
+          <h1 className="login-title">🎓 Student LMS</h1>
+          <p className="login-subtitle">Sign in to your account</p>
         </div>
 
-        {error && <div style={loginStyles.error}>❌ {error}</div>}
+        {error && <div className="login-error">❌ {error}</div>}
 
-        <form onSubmit={handleSubmit} style={loginStyles.form}>
-          <div style={loginStyles.inputGroup}>
-            <label style={loginStyles.label}>Email</label>
+        <form onSubmit={handleSubmit} className="login-form">
+          <div className="login-input-group">
+            <label className="login-label">Email</label>
             <input
               type="email"
               value={credentials.email}
               onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
               placeholder="admin@lms.com"
-              style={loginStyles.input}
+              className="login-input"
               required
               disabled={loading}
             />
           </div>
 
-          <div style={loginStyles.inputGroup}>
-            <label style={loginStyles.label}>Password</label>
+          <div className="login-input-group">
+            <label className="login-label">Password</label>
             <input
               type="password"
               value={credentials.password}
               onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
               placeholder="Enter your password"
-              style={loginStyles.input}
+              className="login-input"
               required
               disabled={loading}
             />
@@ -89,21 +91,18 @@ const LoginPage = ({ onLogin }) => {
           <button
             type="submit"
             disabled={loading}
-            style={{
-              ...loginStyles.button,
-              opacity: loading ? 0.7 : 1,
-              cursor: loading ? 'not-allowed' : 'pointer'
-            }}
+            className="login-button"
+            style={{ opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
           >
             {loading ? '🔄 Signing in...' : '🔐 Sign In'}
           </button>
         </form>
 
-        <div style={loginStyles.footer}>
-          <p style={loginStyles.helpText}>💡 <strong>Default Credentials:</strong></p>
-          <div style={loginStyles.credentialBox}>
-            <p style={loginStyles.credential}><strong>👨‍💼 Admin:</strong> admin@lms.com / admin123</p>
-            <p style={loginStyles.credential}><strong>👨‍🎓 Intern:</strong> intern@lms.com / int2025001</p>
+        <div className="login-footer">
+          <p className="login-help-text">💡 <strong>Default Credentials:</strong></p>
+          <div className="login-credential-box">
+            <p className="login-credential"><strong>👨‍💼 Admin:</strong> admin@lms.com / admin123</p>
+            <p className="login-credential"><strong>👨‍🎓 Intern:</strong> intern@lms.com / int2025001</p>
           </div>
         </div>
       </div>
@@ -128,47 +127,47 @@ const AdminLayout = ({ user, onLogout, children }) => {
   ];
 
   return (
-    <div style={layoutStyles.container}>
-      <aside style={layoutStyles.sidebar}>
-        <div style={layoutStyles.sidebarHeader}>
-          <h2 style={layoutStyles.logo}>🎓 Student LMS</h2>
-          <p style={layoutStyles.logoSubtitle}>Admin Portal</p>
+    <div className="layout-container">
+      <aside className="layout-sidebar">
+        <div className="layout-sidebar-header">
+          <h2 className="layout-logo">🎓 Student LMS</h2>
+          <p className="layout-logo-subtitle">Admin Portal</p>
         </div>
 
-        <nav style={layoutStyles.nav}>
+        <nav className="layout-nav">
           {menuItems.map((item) => (
             <Link
               key={item.path}
               to={item.path}
+              className="layout-nav-item"
               style={{
-                ...layoutStyles.navItem,
                 backgroundColor: location.pathname === item.path ? '#3b82f6' : 'transparent',
                 color: location.pathname === item.path ? 'white' : '#6b7280'
               }}
             >
-              <span style={{ fontSize: '20px', marginRight: '12px' }}>{item.icon}</span>
+              <span className="layout-nav-icon">{item.icon}</span>
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div style={layoutStyles.sidebarFooter}>
-          <div style={layoutStyles.userInfo}>
-            <div style={layoutStyles.userAvatar}>
+        <div className="layout-sidebar-footer">
+          <div className="layout-user-info">
+            <div className="layout-user-avatar">
               {user.name.charAt(0).toUpperCase()}
             </div>
             <div>
-              <div style={layoutStyles.userName}>{user.name}</div>
-              <div style={layoutStyles.userRole}>{user.role}</div>
+              <div className="layout-user-name">{user.name}</div>
+              <div className="layout-user-role">{user.role}</div>
             </div>
           </div>
-          <button onClick={onLogout} style={layoutStyles.logoutButton}>
+          <button onClick={onLogout} className="layout-logout-button">
             🚪 Logout
           </button>
         </div>
       </aside>
 
-      <main style={layoutStyles.main}>{children}</main>
+      <main className="layout-main">{children}</main>
     </div>
   );
 };
@@ -219,18 +218,18 @@ const UnauthorizedPage = () => {
   }, [navigate]);
 
   return (
-    <div style={placeholderStyles.container}>
-      <h1 style={placeholderStyles.title}>🚫 Unauthorized</h1>
-      <p style={placeholderStyles.subtitle}>You don't have permission to access this page.</p>
+    <div className="placeholder-container">
+      <h1 className="placeholder-title">🚫 Unauthorized</h1>
+      <p className="placeholder-subtitle">You don't have permission to access this page.</p>
     </div>
   );
 };
 
 const NotFoundPage = () => (
-  <div style={placeholderStyles.container}>
-    <h1 style={placeholderStyles.title}>404</h1>
-    <p style={placeholderStyles.subtitle}>Page not found</p>
-    <Link to="/" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: '600' }}>
+  <div className="placeholder-container">
+    <h1 className="placeholder-title">404</h1>
+    <p className="placeholder-subtitle">Page not found</p>
+    <Link to="/" className="placeholder-link">
       ← Go back home
     </Link>
   </div>
@@ -280,9 +279,9 @@ const App = () => {
 
   if (loading) {
     return (
-      <div style={loadingStyles.container}>
-        <div style={loadingStyles.spinner}></div>
-        <p style={loadingStyles.text}>Loading...</p>
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p className="loading-text">Loading...</p>
       </div>
     );
   }
@@ -290,6 +289,7 @@ const App = () => {
   return (
     <Router>
       <Routes>
+        {/* ✅ LOGIN ROUTE */}
         <Route
           path="/login"
           element={
@@ -301,6 +301,7 @@ const App = () => {
           }
         />
 
+        {/* ✅ ADMIN ROUTES */}
         <Route
           path="/admin/*"
           element={
@@ -319,8 +320,10 @@ const App = () => {
           }
         />
 
+        {/* ✅ UNAUTHORIZED ROUTE */}
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
+        {/* ✅ INTERN DASHBOARD ROUTE */}
         <Route
           path="/intern/dashboard"
           element={
@@ -330,294 +333,32 @@ const App = () => {
           }
         />
 
+        {/* ✅ INTERN CERTIFICATES ROUTE - NEW */}
+        <Route
+          path="/intern/certificates"
+          element={
+            <ProtectedRoute user={user} requiredRole="INTERN">
+              <InternCertificates />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ✅ DEFAULT REDIRECT */}
         <Route
           path="/"
           element={<Navigate to={user ? (user.role === 'ADMIN' ? '/admin/users' : '/intern/dashboard') : '/login'} replace />}
         />
 
+        {/* ✅ 404 CATCH ALL */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
-
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-        
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-          -webkit-font-smoothing: antialiased;
-          -moz-osx-font-smoothing: grayscale;
-        }
-        
-        a {
-          text-decoration: none;
-          transition: all 0.2s;
-        }
-        
-        a:hover {
-          opacity: 0.8;
-        }
-        
-        button:hover:not(:disabled) {
-          opacity: 0.9;
-          transform: translateY(-1px);
-        }
-        
-        table tr:hover {
-          background-color: #f9fafb;
-        }
-        
-        input:focus, textarea:focus, select:focus {
-          outline: 2px solid #3b82f6;
-          outline-offset: 2px;
-        }
-      `}</style>
     </Router>
   );
 };
 
-// ============================================================================
-// STYLES
-// ============================================================================
-
-const loginStyles = {
-  container: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f3f4f6',
-    padding: '20px'
-  },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: '16px',
-    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-    padding: '40px',
-    width: '100%',
-    maxWidth: '440px'
-  },
-  header: {
-    textAlign: 'center',
-    marginBottom: '32px'
-  },
-  title: {
-    fontSize: '32px',
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: '8px'
-  },
-  subtitle: {
-    fontSize: '16px',
-    color: '#6b7280'
-  },
-  error: {
-    padding: '12px 16px',
-    backgroundColor: '#fee2e2',
-    color: '#991b1b',
-    borderRadius: '8px',
-    marginBottom: '20px',
-    fontSize: '14px',
-    border: '1px solid #fecaca'
-  },
-  form: {
-    marginBottom: '24px'
-  },
-  inputGroup: {
-    marginBottom: '20px'
-  },
-  label: {
-    display: 'block',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: '8px'
-  },
-  input: {
-    width: '100%',
-    padding: '12px 16px',
-    border: '1px solid #e5e7eb',
-    borderRadius: '8px',
-    fontSize: '14px',
-    transition: 'border-color 0.2s'
-  },
-  button: {
-    width: '100%',
-    padding: '14px',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s'
-  },
-  footer: {
-    paddingTop: '24px',
-    borderTop: '1px solid #e5e7eb',
-    textAlign: 'center'
-  },
-  helpText: {
-    fontSize: '13px',
-    color: '#6b7280',
-    marginBottom: '12px'
-  },
-  credentialBox: {
-    backgroundColor: '#f9fafb',
-    padding: '12px',
-    borderRadius: '8px',
-    border: '1px solid #e5e7eb'
-  },
-  credential: {
-    fontSize: '13px',
-    color: '#374151',
-    marginBottom: '8px',
-    textAlign: 'left'
-  }
-};
-
-const layoutStyles = {
-  container: {
-    display: 'flex',
-    height: '100vh',
-    backgroundColor: '#f9fafb'
-  },
-  sidebar: {
-    width: '280px',
-    backgroundColor: 'white',
-    borderRight: '1px solid #e5e7eb',
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'auto'
-  },
-  sidebarHeader: {
-    padding: '24px 20px',
-    borderBottom: '1px solid #e5e7eb'
-  },
-  logo: {
-    fontSize: '24px',
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: '4px'
-  },
-  logoSubtitle: {
-    fontSize: '13px',
-    color: '#6b7280'
-  },
-  nav: {
-    flex: 1,
-    padding: '20px 12px'
-  },
-  navItem: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '12px 16px',
-    borderRadius: '8px',
-    marginBottom: '4px',
-    fontSize: '14px',
-    fontWeight: '500',
-    transition: 'all 0.2s',
-    cursor: 'pointer'
-  },
-  sidebarFooter: {
-    padding: '20px',
-    borderTop: '1px solid #e5e7eb'
-  },
-  userInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    marginBottom: '16px'
-  },
-  userAvatar: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '50%',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '18px',
-    fontWeight: '600'
-  },
-  userName: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#111827'
-  },
-  userRole: {
-    fontSize: '12px',
-    color: '#6b7280'
-  },
-  logoutButton: {
-    width: '100%',
-    padding: '10px',
-    backgroundColor: '#f3f4f6',
-    color: '#374151',
-    border: '1px solid #e5e7eb',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s'
-  },
-  main: {
-    flex: 1,
-    overflow: 'auto'
-  }
-};
-
-const loadingStyles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100vh',
-    backgroundColor: '#f9fafb'
-  },
-  spinner: {
-    width: '48px',
-    height: '48px',
-    border: '4px solid #f3f4f6',
-    borderTop: '4px solid #3b82f6',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite'
-  },
-  text: {
-    marginTop: '16px',
-    color: '#6b7280',
-    fontSize: '14px'
-  }
-};
-
-const placeholderStyles = {
-  container: {
-    padding: '60px 30px',
-    maxWidth: '800px',
-    margin: '0 auto',
-    textAlign: 'center'
-  },
-  title: {
-    fontSize: '48px',
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: '16px'
-  },
-  subtitle: {
-    fontSize: '18px',
-    color: '#6b7280',
-    marginBottom: '40px'
-  }
-};
-
 export default App;
+
+/*
+  NOTE: All styles have been moved to App.css
+  Import statement: import './App.css';
+*/

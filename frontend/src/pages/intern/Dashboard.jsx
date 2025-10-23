@@ -1,12 +1,13 @@
-// frontend/src/pages/intern/Dashboard.jsx - FIXED UNENROLL VERSION
-
+// frontend/src/pages/intern/Dashboard.jsx - WITH CERTIFICATES MERGED
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom'; // ✅ ADD THIS IMPORT
 import './Dashboard.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const InternDashboard = () => {
+  const navigate = useNavigate(); // ✅ ADD THIS
   const [profile, setProfile] = useState(null);
   const [enrollments, setEnrollments] = useState([]);
   const [availableInternships, setAvailableInternships] = useState([]);
@@ -31,14 +32,13 @@ const InternDashboard = () => {
   const [activeTab, setActiveTab] = useState('current');
   const [notifications, setNotifications] = useState([]);
   
-  // FIX: Use ref to prevent auto-switching
   const selectedEnrollmentIdRef = useRef(null);
   const pollIntervalRef = useRef(null);
 
   const getToken = () => localStorage.getItem('token') || localStorage.getItem('authToken');
 
   // ============================================================================
-  // FETCH FUNCTIONS - COMPLETELY FIXED AUTO-SWITCHING
+  // FETCH FUNCTIONS
   // ============================================================================
 
   const fetchProfile = useCallback(async () => {
@@ -64,21 +64,17 @@ const InternDashboard = () => {
         const validEnrollments = res.data.data.filter(e => e && e.internship && e.internship.id);
         setEnrollments(validEnrollments);
         
-        // FIX: Preserve selected enrollment using ref
         if (validEnrollments.length > 0) {
           if (selectedEnrollmentIdRef.current) {
-            // Find and update the currently selected enrollment
             const stillExists = validEnrollments.find(e => e.id === selectedEnrollmentIdRef.current);
             if (stillExists) {
               setSelectedEnrollment(stillExists);
             } else {
-              // Selected enrollment was deleted, select first available
               const firstActive = validEnrollments.find(e => !e.isCompleted) || validEnrollments[0];
               setSelectedEnrollment(firstActive);
               selectedEnrollmentIdRef.current = firstActive.id;
             }
           } else {
-            // Initial load - select first active enrollment
             const firstActive = validEnrollments.find(e => !e.isCompleted) || validEnrollments[0];
             setSelectedEnrollment(firstActive);
             selectedEnrollmentIdRef.current = firstActive.id;
@@ -147,7 +143,7 @@ const InternDashboard = () => {
   }, []);
 
   // ============================================================================
-  // INITIAL LOAD - ONLY ONCE
+  // INITIAL LOAD
   // ============================================================================
 
   useEffect(() => {
@@ -155,7 +151,7 @@ const InternDashboard = () => {
     fetchEnrollments();
     fetchAvailableInternships();
     fetchNotifications();
-  }, []); // Run only once on mount
+  }, []);
 
   useEffect(() => {
     if (selectedEnrollment && selectedEnrollment.internship?.id) {
@@ -164,7 +160,7 @@ const InternDashboard = () => {
   }, [selectedEnrollment?.internship?.id, fetchTasks]);
 
   // ============================================================================
-  // ACTION HANDLERS - FIXED UNENROLL
+  // ACTION HANDLERS
   // ============================================================================
 
   const handleLogout = () => {
@@ -195,18 +191,16 @@ const InternDashboard = () => {
     }
   };
 
-  // ✅ FIXED: Proper unenroll handler with enrollment ID
   const openUnenrollModal = (enrollment, event) => {
     if (event) {
       event.stopPropagation();
     }
     console.log('Opening unenroll modal for:', enrollment.internship?.title);
-    console.log('Enrollment ID:', enrollment.id); // This is the enrollment ID we need
+    console.log('Enrollment ID:', enrollment.id);
     setUnenrollTarget(enrollment);
     setShowUnenrollModal(true);
   };
 
-  // ✅ FIXED: Use enrollment ID instead of internship ID
   const handleUnenroll = async () => {
     if (!unenrollTarget || !unenrollTarget.id) {
       alert('❌ Invalid enrollment data');
@@ -218,7 +212,6 @@ const InternDashboard = () => {
       const token = getToken();
       console.log('Unenrolling enrollment ID:', unenrollTarget.id);
       
-      // ✅ FIXED: Use the correct API endpoint with enrollment ID
       const res = await axios.delete(
         `${API_URL}/internships/${unenrollTarget.id}/unenroll`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -227,7 +220,6 @@ const InternDashboard = () => {
       if (res.data.success) {
         alert('✅ Successfully unenrolled from ' + unenrollTarget.internship.title);
         
-        // Clear selection if we unenrolled from the currently selected internship
         if (selectedEnrollment?.id === unenrollTarget.id) {
           setSelectedEnrollment(null);
           selectedEnrollmentIdRef.current = null;
@@ -237,7 +229,6 @@ const InternDashboard = () => {
         setShowUnenrollModal(false);
         setUnenrollTarget(null);
         
-        // Refresh data
         await fetchEnrollments();
         await fetchAvailableInternships();
       }
@@ -303,15 +294,12 @@ const InternDashboard = () => {
     }
   };
 
-  // ✅ FIXED: Upload payment proof with MANDATORY validation (creates payment record)
   const uploadPaymentProof = async () => {
-    // ✅ MANDATORY: Transaction ID
     if (!transactionId || transactionId.trim() === '') {
       alert('⚠️ TRANSACTION ID IS MANDATORY!\n\n❌ Please enter your payment transaction ID before submitting.\n\nThis is required for payment verification.');
       return;
     }
 
-    // ✅ MANDATORY: Payment proof screenshot
     if (!paymentProof) {
       alert('⚠️ PAYMENT PROOF SCREENSHOT IS MANDATORY!\n\n❌ Please upload your payment screenshot before submitting.\n\nThis is required for payment verification.');
       return;
@@ -352,7 +340,6 @@ const InternDashboard = () => {
     }
   };
 
-  // FIX: Manual selection with ref update
   const handleSelectEnrollment = (enrollment) => {
     console.log('Manually selected:', enrollment.internship?.title);
     setSelectedEnrollment(enrollment);
@@ -385,9 +372,8 @@ const InternDashboard = () => {
   const canPurchaseCertificate = () => {
     if (!selectedEnrollment || !selectedEnrollment.internship) return false;
     
-    // Calculate percentage based on actual tasks in this internship
     const totalTasks = selectedEnrollment.totalTasks || tasks.length;
-    const maxPossibleScore = totalTasks * 10; // Each task is worth 10 points
+    const maxPossibleScore = totalTasks * 10;
     const actualScore = selectedEnrollment.finalScore || 0;
     const percentage = maxPossibleScore > 0 ? (actualScore / maxPossibleScore) * 100 : 0;
     
@@ -433,7 +419,7 @@ const InternDashboard = () => {
 
   return (
     <div className="intern-dashboard">
-      {/* Enhanced Header */}
+      {/* ✅ UPDATED HEADER WITH CERTIFICATES BUTTON */}
       <div className="dashboard-header">
         <div className="header-left">
           <div className="logo-section">
@@ -445,6 +431,15 @@ const InternDashboard = () => {
           </div>
         </div>
         <div className="header-right">
+          {/* ✅ NEW: Certificates Button */}
+          <button 
+            className="btn-enroll-new" 
+            onClick={() => navigate('/certificates')}
+            title="View your certificates"
+          >
+            🎓 My Certificates
+          </button>
+          
           <button className="btn-enroll-new" onClick={() => setShowEnrollModal(true)}>
             <span>+</span> New Internship
           </button>
@@ -455,7 +450,7 @@ const InternDashboard = () => {
         </div>
       </div>
 
-      {/* Enrollments Section - FIXED */}
+      {/* Enrollments Section */}
       {enrollments.length > 0 && (
         <div className="enrollments-section">
           <div className="section-header">
@@ -494,7 +489,6 @@ const InternDashboard = () => {
                       />
                     )}
                     {enrollment.isCompleted && <div className="completed-badge">✅ Completed</div>}
-                    {/* ✅ FIXED: Proper unenroll button with enrollment object */}
                     <button 
                       className="btn-unenroll-card"
                       onClick={(e) => openUnenrollModal(enrollment, e)}
@@ -758,7 +752,7 @@ const InternDashboard = () => {
         </div>
       )}
 
-      {/* Unenroll Modal - FIXED */}
+      {/* Unenroll Modal */}
       {showUnenrollModal && unenrollTarget && (
         <div className="modal-overlay" onClick={() => setShowUnenrollModal(false)}>
           <div className="modal-content delete-modal" onClick={(e) => e.stopPropagation()}>
