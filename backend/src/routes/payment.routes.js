@@ -1,8 +1,10 @@
-// backend/src/routes/payment.routes.js - FIXED WITH MISSING ROUTES ADDED
+// backend/src/routes/payment.routes.js - FIXED WITH REJECT ROUTE
 const express = require('express');
 const router = express.Router();
 const { authMiddleware, adminOnly } = require('../middleware/auth.middleware');
 const {
+  verifyPayment,
+  rejectPayment,                       // ✅ ADDED - NEW REJECT
   initiateCertificatePayment,
   verifyPaymentAndIssueCertificate,
   initiatePaidTaskPayment,
@@ -10,21 +12,20 @@ const {
   getMyPayments,
   getAllPayments,
   getPaymentStats,
-  verifyPayment,        // ✅ ADDED - for admin to verify
-  uploadPaymentProof    // ✅ ADDED - if you have this function
+  getPendingPayments
 } = require('../controllers/payment.controller');
 
 // ============================================================================
 // INTERN ROUTES
 // ============================================================================
 
-// Initiate certificate payment - MULTIPLE ROUTE VARIATIONS
+// Initiate certificate payment
 router.post('/certificate/initiate', authMiddleware, initiateCertificatePayment);
-router.post('/initiate-certificate', authMiddleware, initiateCertificatePayment); // ✅ ADDED
+router.post('/initiate-certificate', authMiddleware, initiateCertificatePayment);
 
-// Submit payment proof - MULTIPLE ROUTE VARIATIONS
+// Submit payment proof
 router.post('/certificate/verify', authMiddleware, verifyPaymentAndIssueCertificate);
-router.post('/upload-proof', authMiddleware, verifyPaymentAndIssueCertificate); // ✅ ADDED - FIXES YOUR ERROR
+router.post('/upload-proof', authMiddleware, verifyPaymentAndIssueCertificate);
 
 // Initiate paid task payment
 router.post('/paid-task/initiate', authMiddleware, initiatePaidTaskPayment);
@@ -39,13 +40,20 @@ router.get('/my-payments', authMiddleware, getMyPayments);
 // ADMIN ROUTES
 // ============================================================================
 
-// Get all payments - MULTIPLE ROUTE VARIATIONS
+// Get all payments
 router.get('/admin/all', authMiddleware, adminOnly, getAllPayments);
-router.get('/', authMiddleware, adminOnly, getAllPayments); // ✅ ADDED - for ?status=PENDING
+router.get('/', authMiddleware, adminOnly, getAllPayments);
 
-// Verify payment (admin approves/rejects)
-router.post('/:paymentId/verify', authMiddleware, adminOnly, verifyPayment); // ✅ ADDED
-router.put('/:paymentId/verify', authMiddleware, adminOnly, verifyPayment);  // ✅ ADDED
+// Get pending payments
+router.get('/admin/pending', authMiddleware, adminOnly, getPendingPayments);
+
+// Verify payment (admin approves)
+router.post('/:paymentId/verify', authMiddleware, adminOnly, verifyPayment);
+router.put('/:paymentId/verify', authMiddleware, adminOnly, verifyPayment);
+
+// ✅ REJECT PAYMENT (admin rejects)
+router.post('/:paymentId/reject', authMiddleware, adminOnly, rejectPayment);
+router.put('/:paymentId/reject', authMiddleware, adminOnly, rejectPayment);
 
 // Get payment statistics
 router.get('/admin/stats', authMiddleware, adminOnly, getPaymentStats);

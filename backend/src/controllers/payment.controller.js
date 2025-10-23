@@ -1,4 +1,4 @@
-// backend/src/controllers/payment.controller.js - COMPLETE WITH ALL FUNCTIONS
+// backend/src/controllers/payment.controller.js - COMPLETE WITH REJECT FUNCTION
 const { PrismaClient } = require('@prisma/client');
 const path = require('path');
 const fs = require('fs');
@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 const verifyPayment = async (req, res) => {
   try {
     const { paymentId } = req.params;
-    const { verifiedTransactionId } = req.body; // ✅ CHANGED from 'action'
+    const { verifiedTransactionId } = req.body;
     const adminId = req.user.id;
 
     const payment = await prisma.payment.findUnique({
@@ -62,9 +62,9 @@ const verifyPayment = async (req, res) => {
             userId: payment.userId,
             paymentId: payment.id,
             certificateNumber,
-            status: 'PENDING_UPLOAD', // Admin needs to upload certificate PDF
+            status: 'PENDING_UPLOAD',
             sessionStartedAt: new Date(),
-            expectedDeliveryAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 days
+            expectedDeliveryAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
           }
         });
 
@@ -108,6 +108,84 @@ const verifyPayment = async (req, res) => {
 
   } catch (error) {
     console.error('Verify payment error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ============================================================================
+// ADMIN: REJECT PAYMENT - ✅ NEW FUNCTION
+// ============================================================================
+const rejectPayment = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    const { rejectionReason } = req.body;
+    const adminId = req.user.id;
+
+    if (!rejectionReason || rejectionReason.trim() === '') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Rejection reason is required' 
+      });
+    }
+
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        user: true,
+        internship: true
+      }
+    });
+
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment not found' });
+    }
+
+    if (payment.paymentStatus !== 'PENDING') {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Cannot reject payment with status: ${payment.paymentStatus}` 
+      });
+    }
+
+    // ✅ REJECT PAYMENT
+    const updated = await prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        paymentStatus: 'REJECTED',
+        rejectionReason: rejectionReason.trim(),
+        rejectedAt: new Date(),
+        rejectedBy: adminId
+      }
+    });
+
+    // ✅ SEND REJECTION NOTIFICATION TO INTERN
+    await prisma.notification.create({
+      data: {
+        userId: payment.userId,
+        title: '❌ Payment Rejected',
+        message: `Your payment of ₹${payment.amount} has been rejected. Reason: ${rejectionReason}. Please resubmit with valid proof.`,
+        type: 'ERROR'
+      }
+    });
+
+    // Audit log
+    await prisma.auditLog.create({
+      data: {
+        action: 'PAYMENT_REJECTED',
+        userId: adminId,
+        details: `Payment rejected: ₹${payment.amount} for ${payment.user.name}. Reason: ${rejectionReason}`,
+        ipAddress: req.ip
+      }
+    });
+
+    res.json({ 
+      success: true, 
+      data: updated, 
+      message: 'Payment rejected. Intern has been notified to resubmit.' 
+    });
+
+  } catch (error) {
+    console.error('Reject payment error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -323,22 +401,6 @@ const initiatePaidTaskPayment = async (req, res) => {
     const { taskId } = req.body;
     const userId = req.user.id;
 
-    // Check if intern has certificate
-    const hasCertificate = await prisma.certificateSession.findFirst({
-      where: {
-        userId,
-        status: 'ISSUED'
-      }
-    });
-
-    if (!hasCertificate) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Certificate required to access paid tasks' 
-      });
-    }
-
-    // Check if task exists
     const task = await prisma.paidTask.findUnique({
       where: { id: taskId }
     });
@@ -347,7 +409,6 @@ const initiatePaidTaskPayment = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Task not found or inactive' });
     }
 
-    // Check if already paid
     const existingPayment = await prisma.payment.findFirst({
       where: {
         userId,
@@ -483,13 +544,14 @@ const getPaymentStats = async (req, res) => {
 
 // ✅ EXPORT ALL FUNCTIONS
 module.exports = {
-  verifyPayment,                       // Admin verifies payment
-  getPendingPayments,                  // Admin gets pending payments
-  getAllPayments,                      // Admin gets all payments
-  initiateCertificatePayment,          // Intern initiates certificate payment
-  verifyPaymentAndIssueCertificate,    // Intern submits payment proof
-  initiatePaidTaskPayment,             // Intern initiates paid task payment
-  verifyPaidTaskPayment,               // Intern submits paid task proof
-  getMyPayments,                       // Intern gets their payments
-  getPaymentStats                      // Admin gets payment statistics
+  verifyPayment,
+  rejectPayment,                       // ✅ NEW - REJECT FUNCTION
+  getPendingPayments,
+  getAllPayments,
+  initiateCertificatePayment,
+  verifyPaymentAndIssueCertificate,
+  initiatePaidTaskPayment,
+  verifyPaidTaskPayment,
+  getMyPayments,
+  getPaymentStats
 };

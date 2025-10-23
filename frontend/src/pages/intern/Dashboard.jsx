@@ -431,10 +431,10 @@ const InternDashboard = () => {
           </div>
         </div>
         <div className="header-right">
-          {/* ✅ NEW: Certificates Button */}
+          {/* ✅ FIXED: Certificates Button - goes to /intern/certificates */}
           <button 
             className="btn-enroll-new" 
-            onClick={() => navigate('/certificates')}
+            onClick={() => navigate('/intern/certificates')}
             title="View your certificates"
           >
             🎓 My Certificates
@@ -547,6 +547,77 @@ const InternDashboard = () => {
             <p>Explore and enroll in available internships to begin your learning journey</p>
             <button className="btn-primary-large" onClick={() => setShowEnrollModal(true)}>
               ✨ Explore Internships
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ NEW CERTIFICATE SUMMARY SECTION */}
+      {enrollments.length > 0 && (
+        <div className="certificate-summary-section">
+          <div className="cert-summary-header">
+            <div className="cert-summary-left">
+              <h2>🎓 My Certificates</h2>
+              <p>View and manage your earned certificates</p>
+            </div>
+            <button 
+              className="btn-view-all-certs"
+              onClick={() => navigate('/intern/certificates')}
+              title="View all certificates"
+            >
+              View All →
+            </button>
+          </div>
+
+          <div className="cert-summary-grid">
+            {enrollments.filter(e => e.certificatePurchased || e.isCompleted).length > 0 ? (
+              <>
+                <div className="cert-stat-card">
+                  <div className="stat-icon">🎓</div>
+                  <div className="stat-content">
+                    <h3>Total Certificates</h3>
+                    <p className="stat-number">{enrollments.filter(e => e.certificatePurchased).length}</p>
+                  </div>
+                </div>
+
+                <div className="cert-stat-card">
+                  <div className="stat-icon">✅</div>
+                  <div className="stat-content">
+                    <h3>Completed</h3>
+                    <p className="stat-number">{enrollments.filter(e => e.isCompleted).length}</p>
+                  </div>
+                </div>
+
+                <div className="cert-stat-card">
+                  <div className="stat-icon">⏳</div>
+                  <div className="stat-content">
+                    <h3>Pending Verification</h3>
+                    <p className="stat-number">
+                      {enrollments.filter(e => e.certificatePurchased && !e.certificateIssued).length}
+                    </p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="cert-empty-message">
+                <p>📭 No certificates yet</p>
+                <small>Complete internships and purchase certificates to see them here</small>
+              </div>
+            )}
+          </div>
+
+          <div className="cert-quick-links">
+            <button 
+              className="cert-link-btn primary"
+              onClick={() => navigate('/intern/certificates')}
+            >
+              📥 Download Certificates
+            </button>
+            <button 
+              className="cert-link-btn secondary"
+              onClick={() => setActiveTab('completed')}
+            >
+              📚 View Completed
             </button>
           </div>
         </div>

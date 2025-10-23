@@ -1410,3 +1410,254 @@ body {
     height: 140px;
   }
 }
+
+/* ===== CERTIFICATE SUMMARY SECTION ===== */
+.certificate-summary-section {
+  background: white;
+  border-radius: 16px;
+  padding: 35px;
+  margin-bottom: 40px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.cert-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.cert-summary-left h2 {
+  margin: 0 0 8px 0;
+  color: #2c3e50;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.cert-summary-left p {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.btn-view-all-certs {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.btn-view-all-certs:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+.cert-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 25px;
+}
+
+.cert-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%);
+  border: 2px solid #e8e8e8;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.cert-stat-card:hover {
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.1);
+}
+
+.stat-icon {
+  font-size: 32px;
+  background: white;
+  width: 60px;
+  height: 60px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-content h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-number {
+  margin: 4px 0 0 0;
+  color: #667eea;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.cert-empty-message {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px;
+  background: linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%);
+  border-radius: 12px;
+  border: 2px dashed #e8e8e8;
+}
+
+.cert-empty-message p {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.cert-empty-message small {
+  display: block;
+  margin-top: 6px;
+  color: #666;
+  font-size: 13px;
+}
+
+.cert-quick-links {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cert-link-btn {
+  flex: 1;
+  min-width: 200px;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 15px;
+}
+
+.cert-link-btn.primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.cert-link-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.cert-link-btn.secondary {
+  background: #f0f0f0;
+  color: #2c3e50;
+}
+
+.cert-link-btn.secondary:hover {
+  background: #e0e0e0;
+  transform: translateY(-2px);
+}
+
+/* ===== RESPONSIVE - Certificate Summary ===== */
+@media (max-width: 768px) {
+  .certificate-summary-section {
+    padding: 20px;
+  }
+
+  .cert-summary-header {
+    flex-direction: column;
+  }
+
+  .btn-view-all-certs {
+    width: 100%;
+  }
+
+  .cert-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cert-quick-links {
+    flex-direction: column;
+  }
+
+  .cert-link-btn {
+    min-width: auto;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .certificate-summary-section {
+    padding: 15px;
+    margin-bottom: 30px;
+  }
+
+  .cert-summary-header {
+    gap: 15px;
+  }
+
+  .cert-summary-left h2 {
+    font-size: 20px;
+  }
+
+  .cert-summary-left p {
+    font-size: 13px;
+  }
+
+  .btn-view-all-certs {
+    padding: 10px 18px;
+    font-size: 13px;
+    width: 100%;
+  }
+
+  .cert-summary-grid {
+    gap: 15px;
+  }
+
+  .cert-stat-card {
+    padding: 15px;
+    gap: 12px;
+  }
+
+  .stat-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 28px;
+  }
+
+  .stat-content h3 {
+    font-size: 12px;
+  }
+
+  .stat-number {
+    font-size: 20px;
+  }
+
+  .cert-empty-message {
+    padding: 30px 20px;
+  }
+
+  .cert-empty-message p {
+    font-size: 14px;
+  }
+
+  .cert-link-btn {
+    font-size: 13px;
+    padding: 12px 18px;
+  }
+}

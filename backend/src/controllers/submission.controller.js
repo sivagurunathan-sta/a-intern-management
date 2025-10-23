@@ -1,4 +1,4 @@
-// backend/src/controllers/submission.controller.js - MERGED WITH PERCENTAGE FIX
+// backend/src/controllers/submission.controller.js - FIXED
 
 const { PrismaClient } = require('@prisma/client');
 const path = require('path');
@@ -38,6 +38,23 @@ const submitTask = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Task is locked' });
     }
 
+    // ✅ FIX: Check if submission already exists
+    const existingSubmission = await prisma.submission.findFirst({
+      where: {
+        enrollmentId: enrollment.id,
+        taskId,
+        userId
+      }
+    });
+
+    // ✅ FIX: If exists and is REJECTED, allow resubmission. Otherwise, don't allow duplicate
+    if (existingSubmission && existingSubmission.status !== 'REJECTED') {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Task already submitted with status: ${existingSubmission.status}. You can only resubmit rejected tasks.` 
+      });
+    }
+
     let fileUrl = null;
     if (req.files && req.files.file) {
       const file = req.files.file;
@@ -49,28 +66,59 @@ const submitTask = async (req, res) => {
       await file.mv(path.join(uploadDir, fileName));
     }
 
-    const submission = await prisma.submission.create({
-      data: {
+    let submission;
+    
+    // ✅ FIX: If resubmitting rejected task, update instead of create
+    if (existingSubmission && existingSubmission.status === 'REJECTED') {
+      submission = await prisma.submission.update({
+        where: { id: existingSubmission.id },
+        data: {
+          submissionType: task.submissionType,
+          githubUrl: githubUrl || existingSubmission.githubUrl,
+          formData: formData || existingSubmission.formData,
+          fileUrl: fileUrl || existingSubmission.fileUrl,
+          status: 'PENDING',
+          submissionDate: new Date(),
+          reviewedAt: null,
+          adminFeedback: null
+        }
+      });
+    } else {
+      // ✅ NEW SUBMISSION
+      submission = await prisma.submission.create({
+        data: {
+          enrollmentId: enrollment.id,
+          taskId,
+          userId,
+          submissionType: task.submissionType,
+          githubUrl,
+          formData,
+          fileUrl,
+          status: 'PENDING'
+        }
+      });
+    }
+
+    const waitTime = new Date(Date.now() + task.waitTimeHours * 60 * 60 * 1000);
+    
+    // ✅ FIX: Check if TaskUnlock exists before creating
+    const existingUnlock = await prisma.taskUnlock.findFirst({
+      where: {
         enrollmentId: enrollment.id,
-        taskId,
-        userId,
-        submissionType: task.submissionType,
-        githubUrl,
-        formData,
-        fileUrl,
-        status: 'PENDING'
+        taskId
       }
     });
 
-    const waitTime = new Date(Date.now() + task.waitTimeHours * 60 * 60 * 1000);
-    await prisma.taskUnlock.create({
-      data: {
-        enrollmentId: enrollment.id,
-        taskId,
-        unlocksAt: waitTime,
-        isUnlocked: false
-      }
-    });
+    if (!existingUnlock) {
+      await prisma.taskUnlock.create({
+        data: {
+          enrollmentId: enrollment.id,
+          taskId,
+          unlocksAt: waitTime,
+          isUnlocked: false
+        }
+      });
+    }
 
     await prisma.notification.create({
       data: {
@@ -83,6 +131,7 @@ const submitTask = async (req, res) => {
 
     res.json({ success: true, data: submission });
   } catch (error) {
+    console.error('Submit task error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -235,12 +284,12 @@ const reviewSubmission = async (req, res) => {
         const percentage = Math.round((totalScore / maxPossibleScore) * 100);
         
         // Get pass percentage for this internship
-        const enrollment = await prisma.enrollment.findUnique({
+        const enrollmentData = await prisma.enrollment.findUnique({
           where: { id: submission.enrollmentId },
           include: { internship: true }
         });
         
-        const passPercentage = enrollment.internship.passPercentage || 75;
+        const passPercentage = enrollmentData.internship.passPercentage || 75;
         const passed = percentage >= passPercentage;
 
         console.log('Marking as completed:', {
@@ -283,15 +332,6 @@ const reviewSubmission = async (req, res) => {
         });
       }
     } else if (status === 'REJECTED') {
-      await prisma.resubmissionOpportunity.create({
-        data: {
-          originalSubmissionId: submissionId,
-          enrollmentId: submission.enrollmentId,
-          taskId: submission.taskId,
-          allowedUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-        }
-      });
-
       await prisma.notification.create({
         data: {
           userId: submission.userId,
