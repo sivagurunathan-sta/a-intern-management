@@ -1,8 +1,8 @@
-// backend/src/routes/intern.routes.js - UPDATED
+// backend/src/routes/intern.routes.js - FIXED
 
 const express = require('express');
 const router = express.Router();
-const { authMiddleware } = require('../middleware/auth.middleware');
+const { authMiddleware, internOnly } = require('../middleware/auth.middleware');
 const {
   getProfile,
   getEnrollments,
@@ -13,17 +13,29 @@ const {
   getDashboardStats
 } = require('../controllers/intern.controller');
 
-// Profile routes
-router.get('/profile', authMiddleware, getProfile);
-router.get('/dashboard/stats', authMiddleware, getDashboardStats);
+// ============================================================================
+// INTERN ROUTES - All require authentication
+// ============================================================================
 
-// Enrollment routes
+// Get intern profile
+router.get('/profile', authMiddleware, getProfile);
+
+// Get intern's enrollments
 router.get('/enrollments', authMiddleware, getEnrollments);
+
+// Get specific enrollment details
 router.get('/enrollments/:enrollmentId', authMiddleware, getEnrollmentDetails);
+
+// Get tasks for a specific internship
 router.get('/internship/:internshipId/tasks', authMiddleware, getInternshipTasks);
 
-// Notification routes
+// Get notifications
 router.get('/notifications', authMiddleware, getNotifications);
+
+// Mark notification as read
 router.put('/notifications/:notificationId/read', authMiddleware, markNotificationAsRead);
+
+// Get dashboard statistics
+router.get('/dashboard/stats', authMiddleware, getDashboardStats);
 
 module.exports = router;

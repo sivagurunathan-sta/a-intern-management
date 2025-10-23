@@ -1,3 +1,5 @@
+// backend/src/controllers/submission.controller.js - MERGED WITH PERCENTAGE FIX
+
 const { PrismaClient } = require('@prisma/client');
 const path = require('path');
 const fs = require('fs');
@@ -153,7 +155,7 @@ const getSubmission = async (req, res) => {
   }
 };
 
-// Review submission (Admin)
+// ✅ FIXED: Review submission with proper completion detection
 const reviewSubmission = async (req, res) => {
   try {
     const { submissionId } = req.params;
@@ -196,6 +198,7 @@ const reviewSubmission = async (req, res) => {
         }
       });
 
+      // ✅ FIXED: Calculate total score from all approved submissions
       const allSubmissions = await prisma.submission.findMany({
         where: {
           enrollmentId: submission.enrollmentId,
@@ -210,28 +213,66 @@ const reviewSubmission = async (req, res) => {
         data: { finalScore: totalScore }
       });
 
+      // ✅ FIXED: Get actual task count for THIS internship
       const allTasks = await prisma.task.count({
         where: { internshipId: currentTask.internshipId, isActive: true }
       });
 
-      if (currentTask.taskNumber >= allTasks) {
+      const approvedCount = allSubmissions.length;
+
+      console.log('Completion Check:', {
+        internshipId: currentTask.internshipId,
+        totalTasks: allTasks,
+        approvedTasks: approvedCount,
+        currentTaskNumber: currentTask.taskNumber,
+        isComplete: approvedCount >= allTasks
+      });
+
+      // ✅ FIXED: Check if ALL tasks are completed (not just task number)
+      if (approvedCount >= allTasks) {
+        // ✅ FIXED: Calculate percentage based on actual tasks
+        const maxPossibleScore = allTasks * 10; // Each task worth 10 points
+        const percentage = Math.round((totalScore / maxPossibleScore) * 100);
+        
+        // Get pass percentage for this internship
+        const enrollment = await prisma.enrollment.findUnique({
+          where: { id: submission.enrollmentId },
+          include: { internship: true }
+        });
+        
+        const passPercentage = enrollment.internship.passPercentage || 75;
+        const passed = percentage >= passPercentage;
+
+        console.log('Marking as completed:', {
+          totalScore,
+          maxPossibleScore,
+          percentage,
+          passPercentage,
+          passed
+        });
+
         await prisma.enrollment.update({
           where: { id: submission.enrollmentId },
           data: {
             isCompleted: true,
-            completionDate: new Date()
+            completionDate: new Date(),
+            status: 'COMPLETED'
           }
         });
 
+        // ✅ FIXED: Send appropriate notification based on pass/fail
         await prisma.notification.create({
           data: {
             userId: submission.userId,
-            title: 'Internship Completed!',
-            message: 'Congratulations! You have completed all tasks. You can now purchase your certificate.',
-            type: 'SUCCESS'
+            title: passed ? '🎉 Internship Completed!' : '📊 Internship Completed',
+            message: passed 
+              ? `Congratulations! You've completed all tasks with ${percentage}% (${totalScore}/${maxPossibleScore} points). You can now purchase your certificate!`
+              : `You've completed all tasks with ${percentage}% (${totalScore}/${maxPossibleScore} points). You need ${passPercentage}% to get the certificate.`,
+            type: passed ? 'SUCCESS' : 'INFO'
           }
         });
       } else {
+        // Still tasks remaining - send normal approval notification
         await prisma.notification.create({
           data: {
             userId: submission.userId,
@@ -263,6 +304,7 @@ const reviewSubmission = async (req, res) => {
 
     res.json({ success: true, data: updated });
   } catch (error) {
+    console.error('Review submission error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

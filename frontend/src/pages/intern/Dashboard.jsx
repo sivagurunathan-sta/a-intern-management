@@ -303,9 +303,17 @@ const InternDashboard = () => {
     }
   };
 
+  // ✅ FIXED: Upload payment proof with MANDATORY validation (creates payment record)
   const uploadPaymentProof = async () => {
-    if (!paymentProof || !transactionId) {
-      alert('❌ Please provide payment proof and transaction ID');
+    // ✅ MANDATORY: Transaction ID
+    if (!transactionId || transactionId.trim() === '') {
+      alert('⚠️ TRANSACTION ID IS MANDATORY!\n\n❌ Please enter your payment transaction ID before submitting.\n\nThis is required for payment verification.');
+      return;
+    }
+
+    // ✅ MANDATORY: Payment proof screenshot
+    if (!paymentProof) {
+      alert('⚠️ PAYMENT PROOF SCREENSHOT IS MANDATORY!\n\n❌ Please upload your payment screenshot before submitting.\n\nThis is required for payment verification.');
       return;
     }
 
@@ -314,10 +322,13 @@ const InternDashboard = () => {
       const token = getToken();
       const formData = new FormData();
       formData.append('paymentProof', paymentProof);
-      formData.append('transactionId', transactionId);
+      formData.append('transactionId', transactionId.trim());
+      formData.append('enrollmentId', paymentDetails.enrollmentId);
+      formData.append('internshipId', paymentDetails.internshipId);
+      formData.append('amount', paymentDetails.amount);
 
       await axios.post(
-        `${API_URL}/payments/${paymentDetails.payment.id}/upload-proof`,
+        `${API_URL}/payments/upload-proof`,
         formData,
         {
           headers: {
@@ -327,13 +338,15 @@ const InternDashboard = () => {
         }
       );
 
-      alert('✅ Payment proof uploaded!');
+      alert('✅ Payment proof uploaded successfully!\n\nYour payment is now pending admin verification.\nYou will be notified once it is verified.');
       setShowPaymentModal(false);
       setPaymentProof(null);
       setTransactionId('');
+      setPaymentDetails(null);
       fetchEnrollments();
     } catch (error) {
-      alert('❌ Error uploading payment proof: ' + (error.response?.data?.message || error.message));
+      const errorMsg = error.response?.data?.message || error.message;
+      alert('❌ Error uploading payment proof:\n\n' + errorMsg);
     } finally {
       setLoading(false);
     }
@@ -371,7 +384,23 @@ const InternDashboard = () => {
 
   const canPurchaseCertificate = () => {
     if (!selectedEnrollment || !selectedEnrollment.internship) return false;
-    const percentage = (selectedEnrollment.finalScore / (selectedEnrollment.totalTasks * 10)) * 100;
+    
+    // Calculate percentage based on actual tasks in this internship
+    const totalTasks = selectedEnrollment.totalTasks || tasks.length;
+    const maxPossibleScore = totalTasks * 10; // Each task is worth 10 points
+    const actualScore = selectedEnrollment.finalScore || 0;
+    const percentage = maxPossibleScore > 0 ? (actualScore / maxPossibleScore) * 100 : 0;
+    
+    console.log('Certificate Check:', {
+      totalTasks,
+      maxPossibleScore,
+      actualScore,
+      percentage,
+      passPercentage: selectedEnrollment.internship.passPercentage || 75,
+      isCompleted: selectedEnrollment.isCompleted,
+      certificatePurchased: selectedEnrollment.certificatePurchased
+    });
+    
     return selectedEnrollment.isCompleted && 
            percentage >= (selectedEnrollment.internship.passPercentage || 75) &&
            !selectedEnrollment.certificatePurchased;
@@ -529,23 +558,43 @@ const InternDashboard = () => {
         </div>
       )}
 
-      {/* Certificate Section */}
       {selectedEnrollment?.isCompleted && selectedEnrollment?.internship && (
         <div className="certificate-section">
-          {canPurchaseCertificate() ? (
-            <div className="certificate-cta">
-              <h3>🎉 You have earned your certificate</h3>
-              <p className="certificate-score">Score: <span>{Math.round((selectedEnrollment.finalScore / (selectedEnrollment.totalTasks * 10)) * 100)}%</span></p>
-              <button className="btn-primary-large" onClick={initiatePayment}>
-                🎓 Get Certificate • ₹{selectedEnrollment.internship.certificatePrice || 499}
-              </button>
-            </div>
-          ) : selectedEnrollment.certificatePurchased ? (
-            <div className="certificate-purchased">
-              <h3>✅ Certificate Purchased</h3>
-              <p>Your certificate will be ready soon</p>
-            </div>
-          ) : null}
+          {(() => {
+            const totalTasks = selectedEnrollment.totalTasks || tasks.length;
+            const maxPossibleScore = totalTasks * 10;
+            const actualScore = selectedEnrollment.finalScore || 0;
+            const percentage = maxPossibleScore > 0 ? Math.round((actualScore / maxPossibleScore) * 100) : 0;
+            const passPercentage = selectedEnrollment.internship.passPercentage || 75;
+            const canPurchase = percentage >= passPercentage && !selectedEnrollment.certificatePurchased;
+
+            return canPurchase ? (
+              <div className="certificate-cta">
+                <h3>🎉 You have earned your certificate</h3>
+                <p className="certificate-score">
+                  Score: <span>{percentage}%</span> ({actualScore}/{maxPossibleScore} points)
+                </p>
+                <button className="btn-primary-large" onClick={initiatePayment}>
+                  🎓 Get Certificate • ₹{selectedEnrollment.internship.certificatePrice || 499}
+                </button>
+              </div>
+            ) : selectedEnrollment.certificatePurchased ? (
+              <div className="certificate-purchased">
+                <h3>✅ Certificate Purchased</h3>
+                <p>Your certificate will be ready soon</p>
+              </div>
+            ) : (
+              <div className="certificate-cta">
+                <h3>📊 Internship Completed</h3>
+                <p className="certificate-score">
+                  Your Score: <span>{percentage}%</span> ({actualScore}/{maxPossibleScore} points)
+                </p>
+                <p style={{color: '#e74c3c', fontSize: '14px', marginTop: '10px'}}>
+                  ❌ You need {passPercentage}% to purchase the certificate. You scored {percentage}%.
+                </p>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -819,7 +868,7 @@ const InternDashboard = () => {
             <div className="payment-info">
               <div className="payment-amount">
                 <p>Total Amount</p>
-                <h3>₹{paymentDetails.payment?.amount || 499}</h3>
+                <h3>₹{paymentDetails.amount || 499}</h3>
               </div>
               
               {paymentDetails.qrCodeUrl && (
@@ -835,25 +884,30 @@ const InternDashboard = () => {
               )}
 
               <div className="form-group">
-                <label>🔢 Transaction ID</label>
+                <label>🔢 Transaction ID *</label>
                 <input
                   type="text"
                   value={transactionId}
                   onChange={(e) => setTransactionId(e.target.value)}
-                  placeholder="Enter transaction ID"
+                  placeholder="Enter transaction ID (MANDATORY)"
+                  required
+                  style={{ borderColor: !transactionId ? '#ff6b6b' : '' }}
                 />
+                <small style={{ color: '#666', fontSize: '12px' }}>* This field is mandatory for payment verification</small>
               </div>
 
               <div className="form-group">
-                <label>📸 Payment Proof Screenshot</label>
+                <label>📸 Payment Proof Screenshot *</label>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => setPaymentProof(e.target.files[0])}
+                  required
                 />
                 {paymentProof && (
                   <p className="file-selected">✅ {paymentProof.name}</p>
                 )}
+                <small style={{ color: '#666', fontSize: '12px' }}>* Upload screenshot of payment confirmation (MANDATORY)</small>
               </div>
             </div>
 

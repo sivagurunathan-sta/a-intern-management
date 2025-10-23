@@ -1,44 +1,45 @@
-// backend/src/routes/payment.routes.js - COMPLETE & WORKING
+// backend/src/routes/payment.routes.js - FIXED TO MATCH CONTROLLER
+
 const express = require('express');
 const router = express.Router();
-const { authMiddleware, adminOnly, internOnly } = require('../middleware/auth.middleware');
+const { authMiddleware, adminOnly } = require('../middleware/auth.middleware');
 const {
   initiateCertificatePayment,
   uploadPaymentProof,
   getAllPayments,
+  getPaymentById,
   verifyPayment,
   rejectPayment,
-  getInternPayments,
-  getPaymentById
+  getInternPayments
 } = require('../controllers/payment.controller');
 
 // ============================================================================
-// INTERN ROUTES - Payment
+// INTERN ROUTES
 // ============================================================================
 
-// Initiate certificate payment (intern requests payment)
-router.post('/initiate-certificate', authMiddleware, internOnly, initiateCertificatePayment);
+// Initiate certificate payment
+router.post('/initiate-certificate', authMiddleware, initiateCertificatePayment);
 
-// Upload payment proof (intern submits proof)
-router.post('/:paymentId/upload-proof', authMiddleware, internOnly, uploadPaymentProof);
+// Upload payment proof (creates payment record)
+router.post('/upload-proof', authMiddleware, uploadPaymentProof);
 
-// Get my payments
-router.get('/my-payments', authMiddleware, internOnly, getInternPayments);
-
-// Get specific payment details
-router.get('/:paymentId', authMiddleware, getPaymentById);
+// Get intern's own payments
+router.get('/my-payments', authMiddleware, getInternPayments);
 
 // ============================================================================
-// ADMIN ROUTES - Payment Verification
+// ADMIN ROUTES
 // ============================================================================
 
-// Get all payments (with filtering)
+// Get all payments (with filters)
 router.get('/', authMiddleware, adminOnly, getAllPayments);
 
-// Verify payment (admin confirms payment is real)
+// Get payment by ID
+router.get('/:paymentId', authMiddleware, getPaymentById);
+
+// Verify payment
 router.post('/:paymentId/verify', authMiddleware, adminOnly, verifyPayment);
 
-// Reject payment (admin rejects payment with reason)
+// Reject payment
 router.post('/:paymentId/reject', authMiddleware, adminOnly, rejectPayment);
 
 module.exports = router;

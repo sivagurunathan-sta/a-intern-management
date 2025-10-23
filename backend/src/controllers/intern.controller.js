@@ -1,4 +1,4 @@
-// backend/src/controllers/intern.controller.js - UPDATED
+// backend/src/controllers/intern.controller.js - MERGED WITH PERCENTAGE FIX
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
@@ -33,7 +33,7 @@ const getProfile = async (req, res) => {
   }
 };
 
-// Get intern enrollments
+// ✅ FIXED: Get intern enrollments with proper percentage calculation
 const getEnrollments = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -59,16 +59,28 @@ const getEnrollments = async (req, res) => {
       orderBy: { enrollmentDate: 'desc' }
     });
 
-    // Enrich data with computed fields
+    // ✅ FIXED: Enrich data with proper percentage calculation based on actual tasks
     const enrichedEnrollments = enrollments.map(enrollment => {
       const approvedSubmissions = enrollment.submissions.filter(s => s.status === 'APPROVED');
       const completedTasks = approvedSubmissions.length;
-      const totalTasks = enrollment.internship.tasks.length || 35;
-      const totalPoints = totalTasks * 10;
+      
+      // ✅ FIXED: Use actual tasks from THIS internship
+      const totalTasks = enrollment.internship.tasks.length;
+      
+      // ✅ FIXED: Calculate max points based on actual tasks
+      const totalPoints = totalTasks * 10; // Each task worth 10 points
+      
+      // ✅ FIXED: Calculate current points from actual submissions
       const currentPoints = approvedSubmissions.reduce((sum, sub) => sum + (sub.score || 0), 0);
+      
+      // ✅ FIXED: Progress based on actual tasks
       const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+      
+      // ✅ FIXED: Calculate percentage based on actual max points
+      const percentage = totalPoints > 0 ? (currentPoints / totalPoints) * 100 : 0;
+      
       const isEligibleForCertificate = enrollment.isCompleted && 
-        (currentPoints / totalPoints) * 100 >= (enrollment.internship.passPercentage || 75);
+        percentage >= (enrollment.internship.passPercentage || 75);
 
       return {
         ...enrollment,
@@ -77,7 +89,9 @@ const getEnrollments = async (req, res) => {
         progress,
         currentPoints,
         totalPoints,
-        isEligibleForCertificate
+        isEligibleForCertificate,
+        // Keep finalScore for display
+        finalScore: enrollment.finalScore || currentPoints
       };
     });
 

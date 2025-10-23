@@ -1,4 +1,4 @@
-// backend/src/controllers/payment.controller.js - COMPLETE & WORKING
+// backend/src/controllers/payment.controller.js - COMPLETE FIX
 const { PrismaClient } = require('@prisma/client');
 const path = require('path');
 const fs = require('fs');
@@ -12,10 +12,20 @@ const initiateCertificatePayment = async (req, res) => {
     const { enrollmentId } = req.body;
     const userId = req.user.id;
 
+    console.log('💳 Initiating payment:', { enrollmentId, userId });
+
     // Get enrollment
     const enrollment = await prisma.enrollment.findUnique({
       where: { id: enrollmentId },
-      include: { internship: true, user: true }
+      include: { 
+        internship: { 
+          include: { tasks: true } 
+        }, 
+        user: true,
+        submissions: {
+          where: { status: 'APPROVED' }
+        }
+      }
     });
 
     if (!enrollment) {
@@ -29,87 +39,125 @@ const initiateCertificatePayment = async (req, res) => {
     if (!enrollment.isCompleted) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Complete all 35 tasks first to purchase certificate' 
+        message: 'Complete all tasks first to purchase certificate' 
       });
     }
 
-    // Check score
-    const score = enrollment.finalScore || 0;
-    const totalPoints = 35 * 10; // 35 tasks * 10 points each
-    const percentage = (score / totalPoints) * 100;
+    // ✅ FIXED: Calculate score based on actual tasks
+    const totalTasks = enrollment.internship.tasks.length;
+    const maxPossibleScore = totalTasks * 10;
+    const actualScore = enrollment.submissions.reduce((sum, sub) => sum + (sub.score || 0), 0);
+    const percentage = maxPossibleScore > 0 ? (actualScore / maxPossibleScore) * 100 : 0;
+    const passPercentage = enrollment.internship.passPercentage || 75;
 
-    if (percentage < enrollment.internship.passPercentage) {
+    console.log('📊 Score check:', { totalTasks, maxPossibleScore, actualScore, percentage: percentage.toFixed(2), passPercentage });
+
+    if (percentage < passPercentage) {
       return res.status(400).json({ 
         success: false, 
-        message: `You scored ${Math.round(percentage)}%. Need ${enrollment.internship.passPercentage}% to purchase certificate` 
+        message: `You scored ${percentage.toFixed(1)}%. Need ${passPercentage}% to purchase certificate` 
       });
     }
 
-    // Create payment record
-    const payment = await prisma.payment.create({
-      data: {
+    // ✅ Check for existing VERIFIED payment
+    const existingVerifiedPayment = await prisma.payment.findFirst({
+      where: {
         userId,
         internshipId: enrollment.internshipId,
-        amount: enrollment.internship.certificatePrice,
         paymentType: 'CERTIFICATE',
-        paymentStatus: 'PENDING'
+        paymentStatus: 'VERIFIED'
       }
     });
+
+    if (existingVerifiedPayment) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Certificate already purchased and verified' 
+      });
+    }
+
+    // ✅ Check for existing PENDING payment WITH proof (already submitted)
+    const existingPendingWithProof = await prisma.payment.findFirst({
+      where: {
+        userId,
+        internshipId: enrollment.internshipId,
+        paymentType: 'CERTIFICATE',
+        paymentStatus: 'PENDING',
+        paymentProofUrl: { not: null }
+      }
+    });
+
+    if (existingPendingWithProof) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Payment already submitted and pending verification. Please wait for admin approval.'
+      });
+    }
+
+    // ✅ FIXED: Don't create payment yet, just return data for modal
+    console.log('✅ Certificate eligible - returning data for modal');
 
     return res.json({ 
       success: true, 
       data: { 
-        payment,
+        enrollmentId: enrollment.id,
+        internshipId: enrollment.internshipId,
         internshipTitle: enrollment.internship.title,
-        amount: enrollment.internship.certificatePrice,
-        userScore: Math.round(percentage)
-      } 
+        amount: enrollment.internship.certificatePrice || 499,
+        qrCodeUrl: '/uploads/qr/payment-qr.png',
+        userScore: percentage.toFixed(1)
+      },
+      message: 'Certificate purchase eligible. Please complete payment.'
     });
   } catch (error) {
-    console.error('Payment initiation error:', error);
+    console.error('❌ Payment initiation error:', error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // ============================================================================
-// UPLOAD PAYMENT PROOF
+// UPLOAD PAYMENT PROOF - CREATES PAYMENT RECORD
 // ============================================================================
 const uploadPaymentProof = async (req, res) => {
   try {
-    const { paymentId } = req.params;
+    const { enrollmentId, internshipId, amount } = req.body;
     const { transactionId } = req.body;
     const userId = req.user.id;
 
-    console.log('Uploading payment proof:', { paymentId, transactionId });
+    console.log('📤 Uploading payment proof:', { enrollmentId, internshipId, transactionId, hasFile: !!req.files });
 
-    // Validate transaction ID
+    // ✅ MANDATORY: Validate transaction ID
     if (!transactionId || transactionId.trim().length === 0) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Transaction ID is required' 
+        message: 'Transaction ID is mandatory' 
       });
     }
 
-    // Check file
+    // ✅ MANDATORY: Check file
     if (!req.files || !req.files.paymentProof) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Payment proof image is required' 
+        message: 'Payment proof image is mandatory' 
       });
     }
 
-    // Get payment
-    const payment = await prisma.payment.findUnique({ 
-      where: { id: paymentId },
-      include: { user: true }
+    // ✅ Check for existing payment with proof already submitted
+    const existingPayment = await prisma.payment.findFirst({
+      where: {
+        userId,
+        internshipId,
+        paymentType: 'CERTIFICATE',
+        paymentStatus: { in: ['PENDING', 'VERIFIED'] },
+        paymentProofUrl: { not: null }
+      }
     });
 
-    if (!payment) {
-      return res.status(404).json({ success: false, message: 'Payment not found' });
-    }
-
-    if (payment.userId !== userId) {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (existingPayment) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Payment already submitted. Please wait for admin verification.' 
+      });
     }
 
     // Save file
@@ -125,34 +173,58 @@ const uploadPaymentProof = async (req, res) => {
     
     await file.mv(path.join(uploadDir, fileName));
 
-    // Update payment
-    const updated = await prisma.payment.update({
-      where: { id: paymentId },
+    console.log('✅ File saved:', filePath);
+
+    // ✅ NOW CREATE the payment record with proof
+    const payment = await prisma.payment.create({
       data: {
+        userId,
+        internshipId,
+        amount: parseInt(amount),
+        paymentType: 'CERTIFICATE',
+        paymentStatus: 'PENDING',
         paymentProofUrl: filePath,
         transactionId: transactionId.trim(),
-        paymentStatus: 'PENDING'
+        qrCodeUrl: '/uploads/qr/payment-qr.png'
       },
       include: { user: true }
     });
+
+    console.log('✅ Payment created with proof:', payment.id);
+
+    // Update enrollment
+    const enrollment = await prisma.enrollment.findFirst({
+      where: {
+        userId,
+        internshipId
+      }
+    });
+
+    if (enrollment) {
+      await prisma.enrollment.update({
+        where: { id: enrollment.id },
+        data: { certificatePurchased: true }
+      });
+      console.log('✅ Enrollment updated - certificate marked as purchased');
+    }
 
     // Create notification for intern
     await prisma.notification.create({
       data: {
         userId,
         title: '📤 Payment Submitted for Review',
-        message: `Your payment proof for ₹${payment.amount} has been submitted. Admin will verify and confirm within 24 hours.`,
+        message: `Your payment proof for ₹${amount} has been submitted. Admin will verify within 24 hours.`,
         type: 'INFO'
       }
     });
 
     return res.json({ 
       success: true, 
-      data: updated,
+      data: payment,
       message: 'Payment proof uploaded successfully! Waiting for admin verification.'
     });
   } catch (error) {
-    console.error('Upload payment proof error:', error);
+    console.error('❌ Upload payment proof error:', error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -162,7 +234,7 @@ const uploadPaymentProof = async (req, res) => {
 // ============================================================================
 const getAllPayments = async (req, res) => {
   try {
-    const { status, page = 1, limit = 20 } = req.query;
+    const { status, page = 1, limit = 50 } = req.query;
     const skip = (page - 1) * limit;
 
     const where = {};
@@ -182,6 +254,8 @@ const getAllPayments = async (req, res) => {
       prisma.payment.count({ where })
     ]);
 
+    console.log(`📋 Found ${payments.length} payments with status: ${status || 'all'}`);
+
     return res.json({
       success: true,
       data: {
@@ -195,7 +269,7 @@ const getAllPayments = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get payments error:', error);
+    console.error('❌ Get payments error:', error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -207,8 +281,9 @@ const verifyPayment = async (req, res) => {
   try {
     const { paymentId } = req.params;
     const { verifiedTransactionId } = req.body;
+    const adminId = req.user.id;
 
-    console.log('Verifying payment:', { paymentId, verifiedTransactionId });
+    console.log('🔍 Admin verifying payment:', { paymentId, verifiedTransactionId, adminId });
 
     if (!verifiedTransactionId || verifiedTransactionId.trim().length === 0) {
       return res.status(400).json({ 
@@ -227,6 +302,16 @@ const verifyPayment = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Payment not found' });
     }
 
+    console.log('📋 Payment found:', { id: payment.id, status: payment.paymentStatus, hasProof: !!payment.paymentProofUrl });
+
+    // Check if proof was uploaded
+    if (!payment.paymentProofUrl || !payment.transactionId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot verify. Intern has not uploaded payment proof yet.' 
+      });
+    }
+
     // Update payment
     const updated = await prisma.payment.update({
       where: { id: paymentId },
@@ -236,6 +321,8 @@ const verifyPayment = async (req, res) => {
         verifiedAt: new Date()
       }
     });
+
+    console.log('✅ Payment status updated to VERIFIED');
 
     // Certificate payment specific: Create certificate session
     if (payment.paymentType === 'CERTIFICATE' && payment.internshipId) {
@@ -259,6 +346,8 @@ const verifyPayment = async (req, res) => {
           }
         });
 
+        console.log('✅ Certificate issued:', certificateNumber);
+
         await prisma.certificateSession.create({
           data: {
             enrollmentId: enrollment.id,
@@ -269,6 +358,8 @@ const verifyPayment = async (req, res) => {
             issuedAt: new Date()
           }
         });
+
+        console.log('✅ Certificate session created');
       }
     }
 
@@ -282,13 +373,27 @@ const verifyPayment = async (req, res) => {
       }
     });
 
+    console.log('✅ Intern notified');
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        action: 'PAYMENT_VERIFIED',
+        userId: adminId,
+        details: `Verified payment ${paymentId} for ${payment.user.name} - Amount: ₹${payment.amount}`,
+        ipAddress: req.ip || 'unknown'
+      }
+    });
+
+    console.log('✅ Audit log created');
+
     return res.json({ 
       success: true, 
       data: updated,
       message: 'Payment verified and certificate issued successfully!'
     });
   } catch (error) {
-    console.error('Verify payment error:', error);
+    console.error('❌ Verify payment error:', error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -300,8 +405,9 @@ const rejectPayment = async (req, res) => {
   try {
     const { paymentId } = req.params;
     const { rejectionReason } = req.body;
+    const adminId = req.user.id;
 
-    console.log('Rejecting payment:', { paymentId, rejectionReason });
+    console.log('❌ Admin rejecting payment:', { paymentId, rejectionReason, adminId });
 
     if (!rejectionReason || rejectionReason.trim().length === 0) {
       return res.status(400).json({ 
@@ -320,6 +426,8 @@ const rejectPayment = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Payment not found' });
     }
 
+    console.log('📋 Payment found:', { id: payment.id, status: payment.paymentStatus });
+
     // Update payment
     const updated = await prisma.payment.update({
       where: { id: paymentId },
@@ -329,15 +437,51 @@ const rejectPayment = async (req, res) => {
       }
     });
 
+    console.log('✅ Payment status updated to REJECTED');
+
+    // Reset enrollment certificate purchase
+    const enrollment = await prisma.enrollment.findFirst({
+      where: {
+        userId: payment.userId,
+        internshipId: payment.internshipId
+      }
+    });
+
+    if (enrollment) {
+      await prisma.enrollment.update({
+        where: { id: enrollment.id },
+        data: {
+          certificatePurchased: false,
+          certificateIssued: false,
+          certificateNumber: null
+        }
+      });
+      console.log('✅ Enrollment reset - can retry payment');
+    }
+
     // Send rejection notification to intern
     await prisma.notification.create({
       data: {
         userId: payment.userId,
         title: '❌ Payment Rejected',
-        message: `Your payment of ₹${payment.amount} was rejected.\n\nReason: ${rejectionReason}\n\nPlease review and try again.`,
+        message: `Your payment of ₹${payment.amount} was rejected.\n\nReason: ${rejectionReason}\n\nPlease review and try again with correct payment details.`,
         type: 'ERROR'
       }
     });
+
+    console.log('✅ Intern notified');
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        action: 'PAYMENT_REJECTED',
+        userId: adminId,
+        details: `Rejected payment ${paymentId} for ${payment.user.name} - Reason: ${rejectionReason}`,
+        ipAddress: req.ip || 'unknown'
+      }
+    });
+
+    console.log('✅ Audit log created');
 
     return res.json({ 
       success: true, 
@@ -345,7 +489,7 @@ const rejectPayment = async (req, res) => {
       message: 'Payment rejected successfully!'
     });
   } catch (error) {
-    console.error('Reject payment error:', error);
+    console.error('❌ Reject payment error:', error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -367,18 +511,19 @@ const getInternPayments = async (req, res) => {
 
     return res.json({ success: true, data: payments });
   } catch (error) {
-    console.error('Get intern payments error:', error);
+    console.error('❌ Get intern payments error:', error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // ============================================================================
-// INTERN - GET PAYMENT BY ID
+// GET PAYMENT BY ID
 // ============================================================================
 const getPaymentById = async (req, res) => {
   try {
     const { paymentId } = req.params;
     const userId = req.user.id;
+    const userRole = req.user.role;
 
     const payment = await prisma.payment.findUnique({
       where: { id: paymentId },
@@ -392,13 +537,14 @@ const getPaymentById = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Payment not found' });
     }
 
-    if (payment.userId !== userId) {
+    // Only allow user to see their own payment, or admin to see any
+    if (userRole !== 'ADMIN' && payment.userId !== userId) {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
     return res.json({ success: true, data: payment });
   } catch (error) {
-    console.error('Get payment error:', error);
+    console.error('❌ Get payment error:', error);
     return res.status(500).json({ success: false, message: error.message });
   }
 };
