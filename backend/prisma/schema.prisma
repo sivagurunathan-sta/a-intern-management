@@ -1,4 +1,4 @@
-// backend/prisma/schema.prisma - COMPLETE MERGED VERSION
+// backend/prisma/schema.prisma - COMPLETE MERGED VERSION WITH PAYMENT REJECTION
 
 generator client {
   provider = "prisma-client-js"
@@ -91,6 +91,7 @@ model User {
   certificateValidations     CertificateValidation[]      @relation("CertificateValidations")
   reviewedValidations        CertificateValidation[]      @relation("CertificateValidationReviewer")
   reviewedSubmissions        Submission[]                 @relation("SubmissionReviewer")
+  rejectedPayments           Payment[]                    @relation("PaymentRejectedBy")
 
   @@index([role, isActive])
   @@map("users")
@@ -249,7 +250,7 @@ model Submission {
 }
 
 // ==========================================
-// PAYMENT MODEL
+// PAYMENT MODEL - ✅ UPDATED WITH REJECTION FIELDS
 // ==========================================
 
 model Payment {
@@ -266,12 +267,15 @@ model Payment {
   qrCodeUrl              String?
   verifiedAt             DateTime?
   rejectionReason        String?
+  rejectedAt             DateTime?
+  rejectedBy             String?       @db.ObjectId
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt
 
   user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   internship          Internship?          @relation(fields: [internshipId], references: [id], onDelete: SetNull)
   paidTask            PaidTask?            @relation(fields: [paidTaskId], references: [id], onDelete: SetNull)
+  rejectedByUser      User?                @relation("PaymentRejectedBy", fields: [rejectedBy], references: [id], onDelete: SetNull)
   certificateSessions CertificateSession[]
 
   @@index([userId, paymentStatus])

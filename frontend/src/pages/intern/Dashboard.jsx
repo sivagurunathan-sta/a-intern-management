@@ -1,13 +1,13 @@
-// frontend/src/pages/intern/Dashboard.jsx - WITH CERTIFICATES MERGED
+// frontend/src/pages/intern/Dashboard.jsx - COMPLETE MERGED VERSION WITH PAYMENT HISTORY
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom'; // ✅ ADD THIS IMPORT
+import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 const InternDashboard = () => {
-  const navigate = useNavigate(); // ✅ ADD THIS
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [enrollments, setEnrollments] = useState([]);
   const [availableInternships, setAvailableInternships] = useState([]);
@@ -31,6 +31,10 @@ const InternDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('current');
   const [notifications, setNotifications] = useState([]);
+  
+  // ✅ NEW STATE VARIABLES FOR PAYMENT HISTORY
+  const [payments, setPayments] = useState([]);
+  const [selectedPaymentDetail, setSelectedPaymentDetail] = useState(null);
   
   const selectedEnrollmentIdRef = useRef(null);
   const pollIntervalRef = useRef(null);
@@ -142,6 +146,22 @@ const InternDashboard = () => {
     }
   }, []);
 
+  // ✅ NEW FETCH FUNCTION FOR PAYMENT HISTORY
+  const fetchPaymentHistory = useCallback(async () => {
+    try {
+      const token = getToken();
+      const res = await axios.get(`${API_URL}/payments/my-payments`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (res.data.success && Array.isArray(res.data.data.payments)) {
+        setPayments(res.data.data.payments);
+      }
+    } catch (error) {
+      console.error('Error fetching payment history:', error);
+    }
+  }, []);
+
   // ============================================================================
   // INITIAL LOAD
   // ============================================================================
@@ -151,6 +171,7 @@ const InternDashboard = () => {
     fetchEnrollments();
     fetchAvailableInternships();
     fetchNotifications();
+    fetchPaymentHistory();
   }, []);
 
   useEffect(() => {
@@ -195,8 +216,6 @@ const InternDashboard = () => {
     if (event) {
       event.stopPropagation();
     }
-    console.log('Opening unenroll modal for:', enrollment.internship?.title);
-    console.log('Enrollment ID:', enrollment.id);
     setUnenrollTarget(enrollment);
     setShowUnenrollModal(true);
   };
@@ -210,7 +229,6 @@ const InternDashboard = () => {
     setLoading(true);
     try {
       const token = getToken();
-      console.log('Unenrolling enrollment ID:', unenrollTarget.id);
       
       const res = await axios.delete(
         `${API_URL}/internships/${unenrollTarget.id}/unenroll`,
@@ -332,6 +350,7 @@ const InternDashboard = () => {
       setTransactionId('');
       setPaymentDetails(null);
       fetchEnrollments();
+      fetchPaymentHistory();
     } catch (error) {
       const errorMsg = error.response?.data?.message || error.message;
       alert('❌ Error uploading payment proof:\n\n' + errorMsg);
@@ -341,7 +360,6 @@ const InternDashboard = () => {
   };
 
   const handleSelectEnrollment = (enrollment) => {
-    console.log('Manually selected:', enrollment.internship?.title);
     setSelectedEnrollment(enrollment);
     selectedEnrollmentIdRef.current = enrollment.id;
   };
@@ -377,16 +395,6 @@ const InternDashboard = () => {
     const actualScore = selectedEnrollment.finalScore || 0;
     const percentage = maxPossibleScore > 0 ? (actualScore / maxPossibleScore) * 100 : 0;
     
-    console.log('Certificate Check:', {
-      totalTasks,
-      maxPossibleScore,
-      actualScore,
-      percentage,
-      passPercentage: selectedEnrollment.internship.passPercentage || 75,
-      isCompleted: selectedEnrollment.isCompleted,
-      certificatePurchased: selectedEnrollment.certificatePurchased
-    });
-    
     return selectedEnrollment.isCompleted && 
            percentage >= (selectedEnrollment.internship.passPercentage || 75) &&
            !selectedEnrollment.certificatePurchased;
@@ -396,6 +404,37 @@ const InternDashboard = () => {
     const enrolledIds = enrollments.map(e => e.internship?.id).filter(Boolean);
     return availableInternships.filter(i => !enrolledIds.includes(i.id));
   };
+
+  // ✅ NEW HELPER FUNCTIONS FOR PAYMENT HISTORY
+  const getPaymentStatusBadge = (payment) => {
+    const statusStyles = {
+      PENDING: { bg: '#fff3cd', color: '#856404', icon: '⏳', text: 'Pending Verification' },
+      VERIFIED: { bg: '#d4edda', color: '#155724', icon: '✅', text: 'Verified' },
+      REJECTED: { bg: '#f8d7da', color: '#721c24', icon: '❌', text: 'Rejected' }
+    };
+    
+    const style = statusStyles[payment.paymentStatus] || statusStyles.PENDING;
+    
+    return (
+      <span style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '6px 12px',
+        background: style.bg,
+        color: style.color,
+        borderRadius: '20px',
+        fontSize: '12px',
+        fontWeight: '700'
+      }}>
+        {style.icon} {style.text}
+      </span>
+    );
+  };
+
+  const getPendingPayments = () => payments.filter(p => p.paymentStatus === 'PENDING');
+  const getRejectedPayments = () => payments.filter(p => p.paymentStatus === 'REJECTED');
+  const getVerifiedPayments = () => payments.filter(p => p.paymentStatus === 'VERIFIED');
 
   const activeEnrollments = enrollments.filter(e => !e.isCompleted);
   const completedEnrollments = enrollments.filter(e => e.isCompleted);
@@ -419,7 +458,7 @@ const InternDashboard = () => {
 
   return (
     <div className="intern-dashboard">
-      {/* ✅ UPDATED HEADER WITH CERTIFICATES BUTTON */}
+      {/* HEADER */}
       <div className="dashboard-header">
         <div className="header-left">
           <div className="logo-section">
@@ -431,7 +470,6 @@ const InternDashboard = () => {
           </div>
         </div>
         <div className="header-right">
-          {/* ✅ FIXED: Certificates Button - goes to /intern/certificates */}
           <button 
             className="btn-enroll-new" 
             onClick={() => navigate('/intern/certificates')}
@@ -552,7 +590,7 @@ const InternDashboard = () => {
         </div>
       )}
 
-      {/* ✅ NEW CERTIFICATE SUMMARY SECTION */}
+      {/* CERTIFICATE SUMMARY SECTION */}
       {enrollments.length > 0 && (
         <div className="certificate-summary-section">
           <div className="cert-summary-header">
@@ -660,6 +698,82 @@ const InternDashboard = () => {
               </div>
             );
           })()}
+        </div>
+      )}
+
+      {/* ✅ NEW: PAYMENT HISTORY SECTION */}
+      {payments.length > 0 && (
+        <div className="payment-history-section" style={{
+          background: 'white',
+          borderRadius: '16px',
+          padding: '35px',
+          marginBottom: '40px',
+          boxShadow: '0 4px 15px rgba(0, 0, 0, 0.08)'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '30px',
+            flexWrap: 'wrap',
+            gap: '15px'
+          }}>
+            <h2 style={{ margin: 0, color: '#2c3e50', fontSize: '24px', fontWeight: '700' }}>
+              💳 Payment History
+            </h2>
+            
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ padding: '8px 14px', background: '#d4edda', color: '#155724', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>
+                ✅ Verified: {getVerifiedPayments().length}
+              </div>
+              <div style={{ padding: '8px 14px', background: '#fff3cd', color: '#856404', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>
+                ⏳ Pending: {getPendingPayments().length}
+              </div>
+              <div style={{ padding: '8px 14px', background: '#f8d7da', color: '#721c24', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>
+                ❌ Rejected: {getRejectedPayments().length}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+              <thead>
+                <tr style={{ background: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
+                  <th style={{ padding: '15px', textAlign: 'left', fontWeight: '700', color: '#333' }}>Type</th>
+                  <th style={{ padding: '15px', textAlign: 'left', fontWeight: '700', color: '#333' }}>Amount</th>
+                  <th style={{ padding: '15px', textAlign: 'left', fontWeight: '700', color: '#333' }}>Transaction ID</th>
+                  <th style={{ padding: '15px', textAlign: 'left', fontWeight: '700', color: '#333' }}>Date</th>
+                  <th style={{ padding: '15px', textAlign: 'left', fontWeight: '700', color: '#333' }}>Status</th>
+                  <th style={{ padding: '15px', textAlign: 'center', fontWeight: '700', color: '#333' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map(payment => (
+                  <tr key={payment.id} style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={{ padding: '15px', color: '#666' }}>
+                      <span style={{ display: 'inline-block', padding: '4px 10px', background: payment.paymentType === 'CERTIFICATE' ? '#e3f2fd' : '#f3e5f5', color: payment.paymentType === 'CERTIFICATE' ? '#1976d2' : '#7b1fa2', borderRadius: '12px', fontSize: '12px', fontWeight: '700' }}>
+                        {payment.paymentType}
+                      </span>
+                    </td>
+                    <td style={{ padding: '15px', fontWeight: '700', color: '#667eea' }}>₹{payment.amount}</td>
+                    <td style={{ padding: '15px', color: '#666', fontSize: '13px' }}>{payment.transactionId || '-'}</td>
+                    <td style={{ padding: '15px', color: '#666', fontSize: '13px' }}>{new Date(payment.createdAt).toLocaleDateString('en-IN')}</td>
+                    <td style={{ padding: '15px' }}>{getPaymentStatusBadge(payment)}</td>
+                    <td style={{ padding: '15px', textAlign: 'center' }}>
+                      <button
+                        onClick={() => setSelectedPaymentDetail(payment)}
+                        style={{ padding: '6px 12px', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.3s ease' }}
+                        onMouseOver={(e) => { e.target.style.background = '#764ba2'; e.target.style.transform = 'translateY(-2px)'; }}
+                        onMouseOut={(e) => { e.target.style.background = '#667eea'; e.target.style.transform = 'translateY(0)'; }}
+                      >
+                        📋 View
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -983,6 +1097,158 @@ const InternDashboard = () => {
               <button className="btn-primary" onClick={uploadPaymentProof} disabled={loading}>
                 {loading ? '⏳ Uploading...' : '✅ Submit Payment'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ NEW: PAYMENT DETAILS MODAL */}
+      {selectedPaymentDetail && (
+        <div className="modal-overlay" onClick={() => setSelectedPaymentDetail(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
+            <div className="modal-header" style={{ borderBottom: '2px solid #f0f0f0', paddingBottom: '15px' }}>
+              <h2 style={{ margin: '0 0 5px 0' }}>💳 Payment Details</h2>
+              <button 
+                className="close-btn" 
+                onClick={() => setSelectedPaymentDetail(null)}
+                style={{ background: '#f0f0f0', border: 'none', width: '32px', height: '32px', borderRadius: '50%', fontSize: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ marginBottom: '25px' }}>
+              {/* STATUS SECTION */}
+              <div style={{
+                padding: '20px',
+                background: selectedPaymentDetail.paymentStatus === 'VERIFIED' 
+                  ? '#d4edda' 
+                  : selectedPaymentDetail.paymentStatus === 'REJECTED'
+                  ? '#f8d7da'
+                  : '#fff3cd',
+                borderRadius: '10px',
+                marginBottom: '20px',
+                borderLeft: `4px solid ${
+                  selectedPaymentDetail.paymentStatus === 'VERIFIED' 
+                    ? '#155724' 
+                    : selectedPaymentDetail.paymentStatus === 'REJECTED'
+                    ? '#721c24'
+                    : '#856404'
+                }`
+              }}>
+                <p style={{
+                  margin: '0 0 8px 0',
+                  color: selectedPaymentDetail.paymentStatus === 'VERIFIED' 
+                    ? '#155724' 
+                    : selectedPaymentDetail.paymentStatus === 'REJECTED'
+                    ? '#721c24'
+                    : '#856404',
+                  fontWeight: '700',
+                  fontSize: '16px'
+                }}>
+                  {selectedPaymentDetail.paymentStatus === 'VERIFIED' && '✅ Payment Verified'}
+                  {selectedPaymentDetail.paymentStatus === 'REJECTED' && '❌ Payment Rejected'}
+                  {selectedPaymentDetail.paymentStatus === 'PENDING' && '⏳ Pending Verification'}
+                </p>
+                <p style={{
+                  margin: '0',
+                  color: selectedPaymentDetail.paymentStatus === 'VERIFIED' 
+                    ? '#155724' 
+                    : selectedPaymentDetail.paymentStatus === 'REJECTED'
+                    ? '#721c24'
+                    : '#856404',
+                  fontSize: '13px'
+                }}>
+                  {selectedPaymentDetail.paymentStatus === 'VERIFIED' && 'Your payment has been verified by admin'}
+                  {selectedPaymentDetail.paymentStatus === 'REJECTED' && 'Your payment was rejected by admin'}
+                  {selectedPaymentDetail.paymentStatus === 'PENDING' && 'Waiting for admin verification...'}
+                </p>
+              </div>
+
+              {/* PAYMENT DETAILS */}
+              <div style={{ padding: '20px', background: '#f9f9f9', borderRadius: '10px', marginBottom: '20px' }}>
+                <p style={{ margin: '0 0 15px 0', fontSize: '15px', fontWeight: '700', color: '#2c3e50' }}>📋 Payment Information</p>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                  <div>
+                    <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px', fontWeight: '600' }}>Payment Type</p>
+                    <p style={{ margin: '0', color: '#2c3e50', fontSize: '14px', fontWeight: '700' }}>
+                      {selectedPaymentDetail.paymentType === 'CERTIFICATE' && '🎓 Certificate'}
+                      {selectedPaymentDetail.paymentType === 'PAID_TASK' && '💰 Paid Task'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px', fontWeight: '600' }}>Amount</p>
+                    <p style={{ margin: '0', color: '#667eea', fontSize: '16px', fontWeight: '700' }}>₹{selectedPaymentDetail.amount}</p>
+                  </div>
+
+                  <div>
+                    <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px', fontWeight: '600' }}>Your Transaction ID</p>
+                    <p style={{ margin: '0', color: '#2c3e50', fontSize: '13px', fontFamily: 'monospace' }}>{selectedPaymentDetail.transactionId || 'Not provided'}</p>
+                  </div>
+
+                  <div>
+                    <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px', fontWeight: '600' }}>Verified Transaction ID</p>
+                    <p style={{ margin: '0', color: '#2ecc71', fontSize: '13px', fontFamily: 'monospace' }}>{selectedPaymentDetail.verifiedTransactionId || 'Pending...'}</p>
+                  </div>
+
+                  <div>
+                    <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px', fontWeight: '600' }}>Submitted Date</p>
+                    <p style={{ margin: '0', color: '#2c3e50', fontSize: '13px' }}>{new Date(selectedPaymentDetail.createdAt).toLocaleString('en-IN')}</p>
+                  </div>
+
+                  <div>
+                    <p style={{ margin: '0 0 5px 0', color: '#666', fontSize: '12px', fontWeight: '600' }}>{selectedPaymentDetail.paymentStatus === 'VERIFIED' ? 'Verified Date' : 'Status'}</p>
+                    <p style={{ margin: '0', color: '#2c3e50', fontSize: '13px' }}>{selectedPaymentDetail.verifiedAt ? new Date(selectedPaymentDetail.verifiedAt).toLocaleString('en-IN') : 'In Progress'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* REJECTION REASON */}
+              {selectedPaymentDetail.paymentStatus === 'REJECTED' && selectedPaymentDetail.rejectionReason && (
+                <div style={{ padding: '20px', background: '#fdeaea', borderRadius: '10px', borderLeft: '4px solid #e74c3c', marginBottom: '20px' }}>
+                  <p style={{ margin: '0 0 10px 0', color: '#c0392b', fontWeight: '700', fontSize: '15px' }}>❌ Rejection Reason</p>
+                  <p style={{ margin: '0', color: '#721c24', fontSize: '14px', lineHeight: '1.6' }}>{selectedPaymentDetail.rejectionReason}</p>
+                  <p style={{ margin: '12px 0 0 0', color: '#666', fontSize: '12px', fontStyle: 'italic' }}>💡 Please correct the issue and resubmit your payment</p>
+                </div>
+              )}
+
+              {/* PAYMENT PROOF */}
+              {selectedPaymentDetail.paymentProofUrl && (
+                <div style={{ padding: '20px', background: '#f0f4ff', borderRadius: '10px', marginBottom: '20px' }}>
+                  <p style={{ margin: '0 0 15px 0', color: '#2c3e50', fontWeight: '700', fontSize: '15px' }}>📸 Payment Proof</p>
+                  <img
+                    src={`http://localhost:5000${selectedPaymentDetail.paymentProofUrl}`}
+                    alt="Payment Proof"
+                    style={{ width: '100%', maxWidth: '500px', borderRadius: '8px', border: '2px solid #e0e0e0' }}
+                    onError={(e) => { e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23f0f0f0" width="100" height="100"/%3E%3Ctext x="50" y="50" font-size="14" text-anchor="middle" dy=".3em" fill="%23999"%3EImage not found%3C/text%3E%3C/svg%3E'; }}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '25px' }}>
+              <button
+                onClick={() => setSelectedPaymentDetail(null)}
+                style={{ flex: 1, padding: '12px', background: '#f0f0f0', color: '#666', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.3s ease' }}
+                onMouseOver={(e) => { e.target.style.background = '#e0e0e0'; }}
+                onMouseOut={(e) => { e.target.style.background = '#f0f0f0'; }}
+              >
+                Close
+              </button>
+
+              {selectedPaymentDetail.paymentStatus === 'REJECTED' && (
+                <button
+                  onClick={() => {
+                    setSelectedPaymentDetail(null);
+                    setShowPaymentModal(true);
+                  }}
+                  style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.3s ease' }}
+                >
+                  🔄 Resubmit Payment
+                </button>
+              )}
             </div>
           </div>
         </div>
